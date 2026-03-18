@@ -127,7 +127,10 @@ fun AppListScreen(
                         AppCard(
                             app = app,
                             onClick = { onAppClick(app.id) },
-                            onDelete = { viewModel.deleteApp(app.id) }
+                            onDelete = {
+                                viewModel.deleteApp(app.id, app.packageName)
+                            },
+                            isInstalled = viewModel.isPackageInstalled(app.packageName)
                         )
                     }
                 }

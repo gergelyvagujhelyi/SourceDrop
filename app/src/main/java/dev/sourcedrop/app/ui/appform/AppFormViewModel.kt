@@ -5,6 +5,11 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import dev.sourcedrop.app.data.local.entity.TrackedApp
 import dev.sourcedrop.app.data.repository.TrackedAppRepository
+import dev.sourcedrop.app.sourceadapters.AppMetadataFetcher
+import dev.sourcedrop.app.sourceadapters.GitHubAdapter
+import dev.sourcedrop.app.sourceadapters.GitLabAdapter
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,13 +18,15 @@ import kotlinx.coroutines.launch
 
 class AppFormViewModel(
     private val repository: TrackedAppRepository,
-    private val appId: Long?
+    private val appId: Long?,
+    private val metadataFetcher: AppMetadataFetcher
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AppFormUiState())
     val uiState: StateFlow<AppFormUiState> = _uiState.asStateFlow()
 
     private var existingApp: TrackedApp? = null
+    private var autoFillJob: Job? = null
 
     init {
         if (appId != null && appId > 0) {
@@ -65,10 +72,13 @@ class AppFormViewModel(
 
     fun updateSourceType(value: String) {
         _uiState.update { it.copy(sourceType = value) }
+        // Re-trigger autofill when source type changes
+        autoFillFromUrl(_uiState.value.sourceUrl)
     }
 
     fun updateSourceUrl(value: String) {
         _uiState.update { it.copy(sourceUrl = value, errors = it.errors - "sourceUrl") }
+        autoFillFromUrl(value)
     }
 
     fun updateApkUrl(value: String) {
@@ -93,6 +103,43 @@ class AppFormViewModel(
 
     fun updateIncludePreReleases(value: Boolean) {
         _uiState.update { it.copy(includePreReleases = value) }
+    }
+
+    private fun autoFillFromUrl(url: String) {
+        autoFillJob?.cancel()
+        if (url.isBlank()) return
+
+        autoFillJob = viewModelScope.launch {
+            delay(600) // debounce while user is typing
+            val state = _uiState.value
+
+            try {
+                val metadata = when (state.sourceType) {
+                    TrackedApp.SOURCE_TYPE_GITHUB -> {
+                        val (owner, repo) = GitHubAdapter.parseOwnerRepo(url)
+                        metadataFetcher.fetchFromGitHub(owner, repo)
+                    }
+                    TrackedApp.SOURCE_TYPE_GITLAB -> {
+                        val (host, path) = GitLabAdapter.parseGitLabUrl(url)
+                        metadataFetcher.fetchFromGitLab(host, path)
+                    }
+                    else -> null
+                } ?: return@launch
+
+                _uiState.update {
+                    it.copy(
+                        displayName = if (it.displayName.isBlank()) {
+                            metadata.displayName ?: it.displayName
+                        } else it.displayName,
+                        packageName = if (it.packageName.isBlank()) {
+                            metadata.packageName ?: it.packageName
+                        } else it.packageName
+                    )
+                }
+            } catch (_: Exception) {
+                // Autofill is best-effort, silently ignore failures
+            }
+        }
     }
 
     fun save() {
@@ -167,11 +214,15 @@ class AppFormViewModel(
     }
 
     companion object {
-        fun factory(repository: TrackedAppRepository, appId: Long?): ViewModelProvider.Factory {
+        fun factory(
+            repository: TrackedAppRepository,
+            appId: Long?,
+            metadataFetcher: AppMetadataFetcher
+        ): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return AppFormViewModel(repository, appId) as T
+                    return AppFormViewModel(repository, appId, metadataFetcher) as T
                 }
             }
         }

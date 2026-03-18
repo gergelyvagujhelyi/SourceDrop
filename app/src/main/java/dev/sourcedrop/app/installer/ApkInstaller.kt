@@ -69,6 +69,29 @@ class ApkInstaller(private val context: Context) {
      * 4. Android system shows the package installer dialog
      * 5. User approves or denies the installation
      */
+    fun isPackageInstalled(packageName: String): Boolean {
+        if (packageName.isBlank()) return false
+        return try {
+            context.packageManager.getPackageInfo(packageName, 0)
+            true
+        } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
+            false
+        }
+    }
+
+    fun launchUninstall(packageName: String): Boolean {
+        if (packageName.isBlank()) return false
+        return try {
+            val intent = Intent(Intent.ACTION_DELETE, Uri.parse("package:$packageName")).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     fun launchInstall(apkFilePath: String): Boolean {
         val file = File(apkFilePath)
         if (!file.exists()) return false

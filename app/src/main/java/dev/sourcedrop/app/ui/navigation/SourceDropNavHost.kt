@@ -15,6 +15,7 @@ import dev.sourcedrop.app.ui.detail.AppDetailScreen
 import dev.sourcedrop.app.ui.detail.AppDetailViewModel
 import dev.sourcedrop.app.ui.downloads.DownloadsScreen
 import dev.sourcedrop.app.ui.downloads.DownloadsViewModel
+import dev.sourcedrop.app.ui.installedapps.InstalledAppsScreen
 import dev.sourcedrop.app.ui.settings.SettingsScreen
 import dev.sourcedrop.app.ui.settings.SettingsViewModel
 
@@ -31,7 +32,9 @@ fun SourceDropNavHost(container: AppContainer) {
                 factory = AppListViewModel.factory(
                     container.trackedAppRepository,
                     container.updateEventRepository,
-                    container.sourceAdapterFactory
+                    container.sourceAdapterFactory,
+                    container.apkDownloader,
+                    container.apkInstaller
                 )
             )
             AppListScreen(
@@ -65,7 +68,7 @@ fun SourceDropNavHost(container: AppContainer) {
 
         composable<AddAppRoute> {
             val viewModel: AppFormViewModel = viewModel(
-                factory = AppFormViewModel.factory(container.trackedAppRepository, null)
+                factory = AppFormViewModel.factory(container.trackedAppRepository, null, container.appMetadataFetcher)
             )
             AppFormScreen(
                 viewModel = viewModel,
@@ -76,7 +79,7 @@ fun SourceDropNavHost(container: AppContainer) {
         composable<EditAppRoute> { backStackEntry ->
             val route = backStackEntry.toRoute<EditAppRoute>()
             val viewModel: AppFormViewModel = viewModel(
-                factory = AppFormViewModel.factory(container.trackedAppRepository, route.appId)
+                factory = AppFormViewModel.factory(container.trackedAppRepository, route.appId, container.appMetadataFetcher)
             )
             AppFormScreen(
                 viewModel = viewModel,
@@ -109,6 +112,13 @@ fun SourceDropNavHost(container: AppContainer) {
             )
             SettingsScreen(
                 viewModel = viewModel,
+                onNavigateBack = { navController.popBackStack() },
+                onInstalledApps = { navController.navigate(InstalledAppsRoute) }
+            )
+        }
+
+        composable<InstalledAppsRoute> {
+            InstalledAppsScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

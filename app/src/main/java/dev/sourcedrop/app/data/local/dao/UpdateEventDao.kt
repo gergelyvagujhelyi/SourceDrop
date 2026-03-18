@@ -14,6 +14,9 @@ interface UpdateEventDao {
     @Query("SELECT * FROM update_events WHERE trackedAppId = :appId ORDER BY detectedAt DESC")
     fun getEventsForApp(appId: Long): Flow<List<UpdateEvent>>
 
+    @Query("SELECT * FROM update_events WHERE trackedAppId = :appId ORDER BY detectedAt DESC")
+    suspend fun getEventsForAppOnce(appId: Long): List<UpdateEvent>
+
     @Query("SELECT * FROM update_events WHERE trackedAppId = :appId ORDER BY detectedAt DESC LIMIT 1")
     suspend fun getLatestEventForApp(appId: Long): UpdateEvent?
 
