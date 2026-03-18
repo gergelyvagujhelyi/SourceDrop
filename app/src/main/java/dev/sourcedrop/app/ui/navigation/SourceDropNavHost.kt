@@ -52,7 +52,8 @@ fun SourceDropNavHost(container: AppContainer) {
                     container.updateEventRepository,
                     container.sourceAdapterFactory,
                     container.apkDownloader,
-                    container.apkInstaller
+                    container.apkInstaller,
+                    container.installedVersionDetector
                 )
             )
             AppDetailScreen(

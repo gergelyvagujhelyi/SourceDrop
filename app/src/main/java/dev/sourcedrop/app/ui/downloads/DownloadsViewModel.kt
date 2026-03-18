@@ -45,10 +45,19 @@ class DownloadsViewModel(
 
     fun installApk(event: UpdateEvent) {
         if (event.localApkPath.isBlank()) return
-        apkInstaller.launchInstall(event.localApkPath)
+        val success = apkInstaller.launchInstall(event.localApkPath)
+        if (!success) return
         viewModelScope.launch {
             updateEventRepository.updateEvent(
                 event.copy(installStatus = UpdateEvent.INSTALL_STARTED)
+            )
+            // Update currentVersion to reflect what was just installed
+            val app = trackedAppRepository.getAppByIdOnce(event.trackedAppId) ?: return@launch
+            trackedAppRepository.updateApp(
+                app.copy(
+                    currentVersion = event.detectedVersion,
+                    updatedAt = System.currentTimeMillis()
+                )
             )
         }
     }

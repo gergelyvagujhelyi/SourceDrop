@@ -36,14 +36,29 @@ class UpdateCheckWorker(
 
         var hasErrors = false
 
+        val versionDetector = container.installedVersionDetector
+
         for (trackedApp in enabledApps) {
             try {
-                val adapter = adapterFactory.create(trackedApp.sourceType)
-                val result = adapter.checkForUpdate(trackedApp)
+                // Auto-detect installed version if currentVersion is blank
+                var currentApp = trackedApp
+                if (currentApp.currentVersion.isBlank() && currentApp.packageName.isNotBlank()) {
+                    val detected = versionDetector.getInstalledVersion(currentApp.packageName)
+                    if (detected != null) {
+                        currentApp = currentApp.copy(
+                            currentVersion = detected,
+                            updatedAt = System.currentTimeMillis()
+                        )
+                        trackedAppRepo.updateApp(currentApp)
+                    }
+                }
+
+                val adapter = adapterFactory.create(currentApp.sourceType)
+                val result = adapter.checkForUpdate(currentApp)
                 val now = System.currentTimeMillis()
 
-                val isNewer = trackedApp.currentVersion.isBlank() ||
-                    VersionComparator.isNewer(trackedApp.currentVersion, result.version)
+                val isNewer = currentApp.currentVersion.isBlank() ||
+                    VersionComparator.isNewer(currentApp.currentVersion, result.version)
 
                 val status = if (isNewer) {
                     TrackedApp.STATUS_UPDATE_AVAILABLE
@@ -52,7 +67,7 @@ class UpdateCheckWorker(
                 }
 
                 trackedAppRepo.updateApp(
-                    trackedApp.copy(
+                    currentApp.copy(
                         latestKnownVersion = result.version,
                         lastCheckedAt = now,
                         lastStatus = status,
@@ -62,12 +77,12 @@ class UpdateCheckWorker(
 
                 if (isNewer) {
                     val existing = updateEventRepo.getEventByVersion(
-                        trackedApp.id, result.version
+                        currentApp.id, result.version
                     )
                     if (existing == null) {
                         updateEventRepo.insertEvent(
                             UpdateEvent(
-                                trackedAppId = trackedApp.id,
+                                trackedAppId = currentApp.id,
                                 detectedVersion = result.version,
                                 releaseNotes = result.releaseNotes,
                                 apkUrl = result.apkUrl,
@@ -77,8 +92,8 @@ class UpdateCheckWorker(
 
                         if (preferences.notificationsEnabled) {
                             notificationHelper.showUpdateNotification(
-                                appId = trackedApp.id,
-                                appName = trackedApp.displayName,
+                                appId = currentApp.id,
+                                appName = currentApp.displayName,
                                 newVersion = result.version,
                                 releaseNotes = result.releaseNotes
                             )
@@ -86,7 +101,7 @@ class UpdateCheckWorker(
                     }
                 }
 
-                Log.d(TAG, "${trackedApp.displayName}: $status (${result.version})")
+                Log.d(TAG, "${currentApp.displayName}: $status (${result.version})")
             } catch (e: Exception) {
                 Log.e(TAG, "Error checking ${trackedApp.displayName}: ${e.message}")
                 val now = System.currentTimeMillis()

@@ -9,6 +9,7 @@ import dev.sourcedrop.app.downloader.ApkDownloader
 import dev.sourcedrop.app.installer.ApkInstaller
 import dev.sourcedrop.app.notifications.NotificationHelper
 import dev.sourcedrop.app.sourceadapters.SourceAdapterFactory
+import dev.sourcedrop.app.util.InstalledVersionDetector
 import dev.sourcedrop.app.worker.WorkScheduler
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
@@ -55,5 +56,9 @@ class AppContainer(context: Context) {
 
     val sourceAdapterFactory: SourceAdapterFactory by lazy {
         SourceAdapterFactory(httpClient)
+    }
+
+    val installedVersionDetector: InstalledVersionDetector by lazy {
+        InstalledVersionDetector(context)
     }
 }

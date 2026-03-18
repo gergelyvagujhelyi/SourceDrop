@@ -26,7 +26,8 @@ class AppDetailViewModel(
     private val updateEventRepository: UpdateEventRepository,
     private val adapterFactory: SourceAdapterFactory,
     private val apkDownloader: ApkDownloader,
-    private val apkInstaller: ApkInstaller
+    private val apkInstaller: ApkInstaller,
+    private val installedVersionDetector: dev.sourcedrop.app.util.InstalledVersionDetector
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AppDetailUiState())
@@ -51,11 +52,20 @@ class AppDetailViewModel(
     }
 
     fun checkNow() {
-        val app = _uiState.value.app ?: return
+        var app = _uiState.value.app ?: return
         if (_uiState.value.isChecking) return
 
         viewModelScope.launch {
             _uiState.update { it.copy(isChecking = true, checkError = null, checkSuccess = null) }
+
+            // Auto-detect installed version from device if currentVersion is blank
+            if (app.currentVersion.isBlank() && app.packageName.isNotBlank()) {
+                val detected = installedVersionDetector.getInstalledVersion(app.packageName)
+                if (detected != null) {
+                    app = app.copy(currentVersion = detected, updatedAt = System.currentTimeMillis())
+                    trackedAppRepository.updateApp(app)
+                }
+            }
 
             try {
                 val adapter = adapterFactory.create(app.sourceType)
@@ -199,6 +209,14 @@ class AppDetailViewModel(
                 updateEventRepository.updateEvent(
                     event.copy(installStatus = UpdateEvent.INSTALL_STARTED)
                 )
+                // Update currentVersion to reflect what was just installed
+                val app = _uiState.value.app ?: return@launch
+                trackedAppRepository.updateApp(
+                    app.copy(
+                        currentVersion = event.detectedVersion,
+                        updatedAt = System.currentTimeMillis()
+                    )
+                )
             }
         } else {
             _uiState.update {
@@ -249,14 +267,16 @@ class AppDetailViewModel(
             updateEventRepository: UpdateEventRepository,
             adapterFactory: SourceAdapterFactory,
             apkDownloader: ApkDownloader,
-            apkInstaller: ApkInstaller
+            apkInstaller: ApkInstaller,
+            installedVersionDetector: dev.sourcedrop.app.util.InstalledVersionDetector
         ): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     return AppDetailViewModel(
                         appId, trackedAppRepository, updateEventRepository,
-                        adapterFactory, apkDownloader, apkInstaller
+                        adapterFactory, apkDownloader, apkInstaller,
+                        installedVersionDetector
                     ) as T
                 }
             }
