@@ -41,6 +41,7 @@ fun AppCard(
     app: TrackedApp,
     onClick: () -> Unit,
     onDelete: () -> Unit,
+    isInstalled: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -53,13 +54,27 @@ fun AppCard(
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Delete ${app.displayName}?") },
-            text = { Text("This will remove the app and all its update history. This cannot be undone.") },
+            text = {
+                Text(
+                    when {
+                        app.packageName.isNotBlank() && isInstalled ->
+                            "This will uninstall ${app.packageName} from your device, remove downloaded APKs, and delete all update history."
+                        app.packageName.isNotBlank() && !isInstalled ->
+                            "${app.packageName} is not installed on this device. This will remove downloaded APKs and delete all update history."
+                        else ->
+                            "This will only remove the tracking record and downloaded APKs. To also uninstall the app from your device, edit it first and set the package name."
+                    }
+                )
+            },
             confirmButton = {
                 TextButton(onClick = {
                     showDeleteDialog = false
                     onDelete()
                 }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(
+                        if (isInstalled) "Uninstall & Delete" else "Delete",
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             },
             dismissButton = {

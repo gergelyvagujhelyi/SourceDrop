@@ -19,3 +19,6 @@ object DownloadsRoute
 
 @Serializable
 object SettingsRoute
+
+@Serializable
+object InstalledAppsRoute

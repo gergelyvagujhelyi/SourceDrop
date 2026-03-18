@@ -8,6 +8,8 @@ class UpdateEventRepository(private val dao: UpdateEventDao) {
 
     fun getEventsForApp(appId: Long): Flow<List<UpdateEvent>> = dao.getEventsForApp(appId)
 
+    suspend fun getEventsForAppOnce(appId: Long): List<UpdateEvent> = dao.getEventsForAppOnce(appId)
+
     suspend fun getLatestEventForApp(appId: Long): UpdateEvent? = dao.getLatestEventForApp(appId)
 
     suspend fun getEventByVersion(appId: Long, version: String): UpdateEvent? =

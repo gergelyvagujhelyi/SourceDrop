@@ -7,8 +7,11 @@ import dev.sourcedrop.app.data.local.entity.TrackedApp
 import dev.sourcedrop.app.data.local.entity.UpdateEvent
 import dev.sourcedrop.app.data.repository.TrackedAppRepository
 import dev.sourcedrop.app.data.repository.UpdateEventRepository
+import dev.sourcedrop.app.downloader.ApkDownloader
+import dev.sourcedrop.app.installer.ApkInstaller
 import dev.sourcedrop.app.sourceadapters.SourceAdapterFactory
 import dev.sourcedrop.app.util.VersionComparator
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
@@ -18,7 +21,9 @@ import kotlinx.coroutines.launch
 class AppListViewModel(
     private val repository: TrackedAppRepository,
     private val updateEventRepository: UpdateEventRepository,
-    private val adapterFactory: SourceAdapterFactory
+    private val adapterFactory: SourceAdapterFactory,
+    private val apkDownloader: ApkDownloader,
+    private val apkInstaller: ApkInstaller
 ) : ViewModel() {
 
     private val _refreshState = MutableStateFlow(RefreshState())
@@ -39,8 +44,29 @@ class AppListViewModel(
         initialValue = AppListUiState()
     )
 
-    fun deleteApp(id: Long) {
+    fun isPackageInstalled(packageName: String): Boolean {
+        return apkInstaller.isPackageInstalled(packageName)
+    }
+
+    fun deleteApp(id: Long, packageName: String = "") {
         viewModelScope.launch {
+            // Launch system uninstall first if the app is actually installed
+            if (packageName.isNotBlank() && apkInstaller.isPackageInstalled(packageName)) {
+                apkInstaller.launchUninstall(packageName)
+                // Give the system time to show the uninstall dialog
+                // before we delete the record and trigger recomposition
+                delay(500)
+            }
+
+            // Clean up downloaded APK files for this app
+            val events = updateEventRepository.getEventsForAppOnce(id)
+            for (event in events) {
+                if (event.localApkPath.isNotBlank()) {
+                    apkDownloader.deleteApk(event.localApkPath)
+                }
+            }
+
+            // Delete the record (cascades to update_events)
             repository.deleteApp(id)
         }
     }
@@ -119,12 +145,17 @@ class AppListViewModel(
         fun factory(
             repository: TrackedAppRepository,
             updateEventRepository: UpdateEventRepository,
-            adapterFactory: SourceAdapterFactory
+            adapterFactory: SourceAdapterFactory,
+            apkDownloader: ApkDownloader,
+            apkInstaller: ApkInstaller
         ): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return AppListViewModel(repository, updateEventRepository, adapterFactory) as T
+                    return AppListViewModel(
+                        repository, updateEventRepository, adapterFactory,
+                        apkDownloader, apkInstaller
+                    ) as T
                 }
             }
         }

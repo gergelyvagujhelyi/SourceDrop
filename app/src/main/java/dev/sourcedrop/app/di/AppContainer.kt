@@ -8,6 +8,7 @@ import dev.sourcedrop.app.data.repository.UpdateEventRepository
 import dev.sourcedrop.app.downloader.ApkDownloader
 import dev.sourcedrop.app.installer.ApkInstaller
 import dev.sourcedrop.app.notifications.NotificationHelper
+import dev.sourcedrop.app.sourceadapters.AppMetadataFetcher
 import dev.sourcedrop.app.sourceadapters.SourceAdapterFactory
 import dev.sourcedrop.app.util.InstalledVersionDetector
 import dev.sourcedrop.app.worker.WorkScheduler
@@ -56,6 +57,10 @@ class AppContainer(context: Context) {
 
     val sourceAdapterFactory: SourceAdapterFactory by lazy {
         SourceAdapterFactory(httpClient)
+    }
+
+    val appMetadataFetcher: AppMetadataFetcher by lazy {
+        AppMetadataFetcher(httpClient)
     }
 
     val installedVersionDetector: InstalledVersionDetector by lazy {
