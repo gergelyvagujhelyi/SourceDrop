@@ -6,6 +6,12 @@ plugins {
     id 'com.google.devtools.ksp'
 }
 
+def keystorePropertiesFile = rootProject.file('keystore.properties')
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace 'dev.sourcedrop.app'
     compileSdk 35
@@ -22,12 +28,11 @@ android {
 
     signingConfigs {
         release {
-            def keystoreFile = System.getenv('KEYSTORE_FILE')
-            if (keystoreFile) {
-                storeFile file(keystoreFile)
-                storePassword System.getenv('KEYSTORE_PASSWORD')
-                keyAlias System.getenv('KEY_ALIAS')
-                keyPassword System.getenv('KEY_PASSWORD')
+            if (keystorePropertiesFile.exists()) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
             }
         }
     }
@@ -36,8 +41,7 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            def keystoreFile = System.getenv('KEYSTORE_FILE')
-            if (keystoreFile) {
+            if (keystorePropertiesFile.exists()) {
                 signingConfig signingConfigs.release
             }
         }
