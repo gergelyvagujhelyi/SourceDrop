@@ -119,7 +119,7 @@ fun AppCard(
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Name and package
+            // Name, package, versions, and source
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = app.displayName,
@@ -135,6 +135,22 @@ fun AppCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = app.currentVersion.ifBlank { "—" } + " → " + app.latestKnownVersion.ifBlank { "—" },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (hasUpdate) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = sourceTypeLabel(app.sourceType),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outline
                     )
                 }
             }
@@ -173,4 +189,13 @@ fun AppCard(
             }
         }
     }
+}
+
+private fun sourceTypeLabel(type: String): String = when (type) {
+    TrackedApp.SOURCE_TYPE_GITHUB -> "GitHub"
+    TrackedApp.SOURCE_TYPE_GITLAB -> "GitLab"
+    TrackedApp.SOURCE_TYPE_JSON -> "JSON"
+    TrackedApp.SOURCE_TYPE_DIRECT_APK -> "Direct APK"
+    TrackedApp.SOURCE_TYPE_HTML -> "HTML"
+    else -> type
 }
