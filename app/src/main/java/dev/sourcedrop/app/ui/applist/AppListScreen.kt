@@ -44,6 +44,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -219,7 +221,13 @@ fun AppListScreen(
                         ) { app ->
                             AppCard(
                                 app = app,
-                                onClick = { if (app.id != -1L) onAppClick(app.id) },
+                                onClick = {
+                                    if (app.id != -1L) {
+                                        onAppClick(app.id)
+                                    } else {
+                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(app.sourceUrl)))
+                                    }
+                                },
                                 onDelete = {
                                     if (app.id != -1L) viewModel.deleteApp(app.id, app.packageName)
                                 },
