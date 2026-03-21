@@ -35,7 +35,7 @@ class AppListViewModel(
     init {
         viewModelScope.launch {
             if (repository.getAppByPackageName(selfPackageName) == null) {
-                repository.insertApp(
+                val appId = repository.insertApp(
                     TrackedApp(
                         displayName = "SourceDrop",
                         packageName = selfPackageName,
@@ -45,6 +45,15 @@ class AppListViewModel(
                         latestKnownVersion = selfVersion
                     )
                 )
+                if (selfVersion.isNotBlank()) {
+                    updateEventRepository.insertEvent(
+                        UpdateEvent(
+                            trackedAppId = appId,
+                            detectedVersion = selfVersion,
+                            detectedAt = System.currentTimeMillis()
+                        )
+                    )
+                }
             }
         }
     }
