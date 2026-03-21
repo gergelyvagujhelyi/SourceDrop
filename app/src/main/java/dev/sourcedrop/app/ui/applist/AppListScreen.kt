@@ -91,7 +91,7 @@ fun AppListScreen(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(horizontal = 32.dp, vertical = 12.dp),
                     shape = RoundedCornerShape(28.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant
                 ) {
