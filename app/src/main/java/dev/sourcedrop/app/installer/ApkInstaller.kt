@@ -88,6 +88,16 @@ class ApkInstaller(private val context: Context) {
         }
     }
 
+    fun getInstalledAppName(packageName: String): String? {
+        if (packageName.isBlank()) return null
+        return try {
+            val appInfo = context.packageManager.getApplicationInfo(packageName, 0)
+            context.packageManager.getApplicationLabel(appInfo).toString()
+        } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
+            null
+        }
+    }
+
     fun launchUninstall(packageName: String): Boolean {
         if (packageName.isBlank()) return false
         return try {

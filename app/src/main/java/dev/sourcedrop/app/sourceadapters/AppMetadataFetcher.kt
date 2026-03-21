@@ -31,19 +31,19 @@ class AppMetadataFetcher(private val client: OkHttpClient) {
 
     suspend fun fetchFromGitHub(owner: String, repo: String): AppMetadata =
         withContext(Dispatchers.IO) {
-            val displayName = formatRepoName(repo)
-            val packageName = fetchGitHubApplicationId(owner, repo)
+            val repoName = formatRepoName(repo)
+            val (packageName, appName) = fetchGitHubProjectInfo(owner, repo)
             val versions = fetchGitHubVersions(owner, repo)
-            AppMetadata(displayName = displayName, packageName = packageName, versions = versions)
+            AppMetadata(displayName = appName ?: repoName, packageName = packageName, versions = versions)
         }
 
     suspend fun fetchFromGitLab(host: String, projectPath: String): AppMetadata =
         withContext(Dispatchers.IO) {
             val projectName = projectPath.substringAfterLast("/")
-            val displayName = formatRepoName(projectName)
-            val packageName = fetchGitLabApplicationId(host, projectPath)
+            val repoName = formatRepoName(projectName)
+            val (packageName, appName) = fetchGitLabProjectInfo(host, projectPath)
             val versions = fetchGitLabVersions(host, projectPath)
-            AppMetadata(displayName = displayName, packageName = packageName, versions = versions)
+            AppMetadata(displayName = appName ?: repoName, packageName = packageName, versions = versions)
         }
 
     private fun fetchGitHubVersions(owner: String, repo: String): List<ReleaseVersion> {
@@ -107,17 +107,23 @@ class AppMetadataFetcher(private val client: OkHttpClient) {
         } catch (_: Exception) { emptyList() }
     }
 
-    private fun fetchGitHubApplicationId(owner: String, repo: String): String? {
-        val paths = listOf(
-            "app/build.gradle.kts",
-            "app/build.gradle",
-            "build.gradle.kts",
-            "build.gradle"
+    private data class ProjectInfo(val packageName: String?, val appName: String?)
+
+    private fun fetchGitHubProjectInfo(owner: String, repo: String): ProjectInfo {
+        // Each entry: build.gradle path -> corresponding strings.xml path
+        val modules = listOf(
+            "app/build.gradle.kts" to "app/src/main/res/values/strings.xml",
+            "app/build.gradle" to "app/src/main/res/values/strings.xml",
+            "build.gradle.kts" to "src/main/res/values/strings.xml",
+            "build.gradle" to "src/main/res/values/strings.xml"
         )
-        for (path in paths) {
+        var packageName: String? = null
+        var stringsPath: String? = null
+
+        for ((gradlePath, resPath) in modules) {
             try {
                 val request = Request.Builder()
-                    .url("https://api.github.com/repos/$owner/$repo/contents/$path")
+                    .url("https://api.github.com/repos/$owner/$repo/contents/$gradlePath")
                     .header("Accept", "application/vnd.github.raw+json")
                     .build()
                 val response = client.newCall(request).execute()
@@ -125,7 +131,11 @@ class AppMetadataFetcher(private val client: OkHttpClient) {
                     val content = response.body?.string() ?: ""
                     response.close()
                     val appId = extractApplicationId(content)
-                    if (appId != null) return appId
+                    if (appId != null) {
+                        packageName = appId
+                        stringsPath = resPath
+                        break
+                    }
                 } else {
                     val code = response.code
                     val resetHeader = response.header("x-ratelimit-reset")
@@ -138,35 +148,87 @@ class AppMetadataFetcher(private val client: OkHttpClient) {
             catch (_: Exception) {
             }
         }
-        return null
-    }
 
-    private fun fetchGitLabApplicationId(host: String, projectPath: String): String? {
-        val encodedPath = URLEncoder.encode(projectPath, "UTF-8")
-        val paths = listOf(
-            "app%2Fbuild.gradle.kts",
-            "app%2Fbuild.gradle",
-            "build.gradle.kts",
-            "build.gradle"
-        )
-        for (filePath in paths) {
+        var appName: String? = null
+        if (stringsPath != null) {
             try {
                 val request = Request.Builder()
-                    .url("https://$host/api/v4/projects/$encodedPath/repository/files/$filePath/raw?ref=HEAD")
+                    .url("https://api.github.com/repos/$owner/$repo/contents/$stringsPath")
+                    .header("Accept", "application/vnd.github.raw+json")
+                    .build()
+                val response = client.newCall(request).execute()
+                if (response.isSuccessful) {
+                    val content = response.body?.string() ?: ""
+                    response.close()
+                    appName = extractAppName(content)
+                } else {
+                    val code = response.code
+                    val resetHeader = response.header("x-ratelimit-reset")
+                    response.close()
+                    if (code == 403 || code == 429) {
+                        throw AdapterError.RateLimitError("GitHub API rate limit exceeded. Resets ${formatResetTime(resetHeader)}")
+                    }
+                }
+            } catch (e: AdapterError.RateLimitError) { throw e }
+            catch (_: Exception) {
+            }
+        }
+
+        return ProjectInfo(packageName, appName)
+    }
+
+    private fun fetchGitLabProjectInfo(host: String, projectPath: String): ProjectInfo {
+        val encodedPath = URLEncoder.encode(projectPath, "UTF-8")
+        val modules = listOf(
+            "app%2Fbuild.gradle.kts" to "app%2Fsrc%2Fmain%2Fres%2Fvalues%2Fstrings.xml",
+            "app%2Fbuild.gradle" to "app%2Fsrc%2Fmain%2Fres%2Fvalues%2Fstrings.xml",
+            "build.gradle.kts" to "src%2Fmain%2Fres%2Fvalues%2Fstrings.xml",
+            "build.gradle" to "src%2Fmain%2Fres%2Fvalues%2Fstrings.xml"
+        )
+        var packageName: String? = null
+        var stringsPath: String? = null
+
+        for ((gradlePath, resPath) in modules) {
+            try {
+                val request = Request.Builder()
+                    .url("https://$host/api/v4/projects/$encodedPath/repository/files/$gradlePath/raw?ref=HEAD")
                     .build()
                 val response = client.newCall(request).execute()
                 if (response.isSuccessful) {
                     val content = response.body?.string() ?: ""
                     response.close()
                     val appId = extractApplicationId(content)
-                    if (appId != null) return appId
+                    if (appId != null) {
+                        packageName = appId
+                        stringsPath = resPath
+                        break
+                    }
                 } else {
                     response.close()
                 }
             } catch (_: Exception) {
             }
         }
-        return null
+
+        var appName: String? = null
+        if (stringsPath != null) {
+            try {
+                val request = Request.Builder()
+                    .url("https://$host/api/v4/projects/$encodedPath/repository/files/$stringsPath/raw?ref=HEAD")
+                    .build()
+                val response = client.newCall(request).execute()
+                if (response.isSuccessful) {
+                    val content = response.body?.string() ?: ""
+                    response.close()
+                    appName = extractAppName(content)
+                } else {
+                    response.close()
+                }
+            } catch (_: Exception) {
+            }
+        }
+
+        return ProjectInfo(packageName, appName)
     }
 
     private fun formatResetTime(resetHeader: String?): String {
@@ -195,11 +257,18 @@ class AppMetadataFetcher(private val client: OkHttpClient) {
         private val NAMESPACE_REGEX = Regex(
             """namespace\s*[=(]\s*["']([^"']+)["']"""
         )
+        private val APP_NAME_REGEX = Regex(
+            """<string\s+name\s*=\s*"app_name"\s*>([^<]+)</string>"""
+        )
 
         fun extractApplicationId(buildFileContent: String): String? {
             APPLICATION_ID_REGEX.find(buildFileContent)?.groupValues?.get(1)?.let { return it }
             NAMESPACE_REGEX.find(buildFileContent)?.groupValues?.get(1)?.let { return it }
             return null
+        }
+
+        fun extractAppName(stringsXmlContent: String): String? {
+            return APP_NAME_REGEX.find(stringsXmlContent)?.groupValues?.get(1)?.trim()
         }
     }
 }

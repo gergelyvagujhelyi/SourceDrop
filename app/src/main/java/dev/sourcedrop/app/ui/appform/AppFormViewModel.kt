@@ -194,11 +194,12 @@ class AppFormViewModel(
                     val pkgName = metadata.packageName ?: ""
                     val installed = pkgName.isNotBlank() && apkInstaller.isPackageInstalled(pkgName)
                     val installedVersion = if (installed) apkInstaller.getInstalledVersion(pkgName) else null
+                    val installedName = if (installed) apkInstaller.getInstalledAppName(pkgName) else null
                     _uiState.update {
                         it.copy(
                             step = 2,
                             isFetching = false,
-                            displayName = metadata.displayName ?: "",
+                            displayName = installedName ?: metadata.displayName ?: "",
                             packageName = pkgName,
                             availableVersions = versions,
                             selectedVersionIndex = 0,
