@@ -23,12 +23,31 @@ class AppListViewModel(
     private val updateEventRepository: UpdateEventRepository,
     private val adapterFactory: SourceAdapterFactory,
     private val apkDownloader: ApkDownloader,
-    private val apkInstaller: ApkInstaller
+    private val apkInstaller: ApkInstaller,
+    private val selfPackageName: String,
+    private val selfVersion: String
 ) : ViewModel() {
 
     private val _refreshState = MutableStateFlow(RefreshState())
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery
+
+    init {
+        viewModelScope.launch {
+            if (repository.getAppByPackageName(selfPackageName) == null) {
+                repository.insertApp(
+                    TrackedApp(
+                        displayName = "SourceDrop",
+                        packageName = selfPackageName,
+                        sourceType = TrackedApp.SOURCE_TYPE_GITHUB,
+                        sourceUrl = "https://github.com/gergelyvagujhelyi/SourceDrop",
+                        currentVersion = selfVersion,
+                        latestKnownVersion = selfVersion
+                    )
+                )
+            }
+        }
+    }
 
     val uiState = combine(
         repository.getAllApps(),
@@ -158,14 +177,16 @@ class AppListViewModel(
             updateEventRepository: UpdateEventRepository,
             adapterFactory: SourceAdapterFactory,
             apkDownloader: ApkDownloader,
-            apkInstaller: ApkInstaller
+            apkInstaller: ApkInstaller,
+            selfPackageName: String,
+            selfVersion: String
         ): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     return AppListViewModel(
                         repository, updateEventRepository, adapterFactory,
-                        apkDownloader, apkInstaller
+                        apkDownloader, apkInstaller, selfPackageName, selfVersion
                     ) as T
                 }
             }

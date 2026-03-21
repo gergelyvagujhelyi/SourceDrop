@@ -12,6 +12,8 @@ class TrackedAppRepository(private val dao: TrackedAppDao) {
 
     suspend fun getAppByIdOnce(id: Long): TrackedApp? = dao.getByIdOnce(id)
 
+    suspend fun getAppByPackageName(packageName: String): TrackedApp? = dao.getByPackageName(packageName)
+
     suspend fun insertApp(app: TrackedApp): Long = dao.insert(app)
 
     suspend fun updateApp(app: TrackedApp) = dao.update(app)

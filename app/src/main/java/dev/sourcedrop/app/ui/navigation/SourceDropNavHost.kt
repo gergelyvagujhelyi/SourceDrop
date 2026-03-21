@@ -1,6 +1,7 @@
 package dev.sourcedrop.app.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -28,13 +29,20 @@ fun SourceDropNavHost(container: AppContainer) {
         startDestination = AppListRoute
     ) {
         composable<AppListRoute> {
+            val context = LocalContext.current
+            val selfPackageName = context.packageName
+            val selfVersion = try {
+                context.packageManager.getPackageInfo(selfPackageName, 0).versionName ?: ""
+            } catch (_: Exception) { "" }
             val viewModel: AppListViewModel = viewModel(
                 factory = AppListViewModel.factory(
                     container.trackedAppRepository,
                     container.updateEventRepository,
                     container.sourceAdapterFactory,
                     container.apkDownloader,
-                    container.apkInstaller
+                    container.apkInstaller,
+                    selfPackageName,
+                    selfVersion
                 )
             )
             AppListScreen(

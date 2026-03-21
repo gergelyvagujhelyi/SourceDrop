@@ -29,6 +29,9 @@ interface TrackedAppDao {
     @Query("DELETE FROM tracked_apps WHERE id = :id")
     suspend fun deleteById(id: Long)
 
+    @Query("SELECT * FROM tracked_apps WHERE packageName = :packageName LIMIT 1")
+    suspend fun getByPackageName(packageName: String): TrackedApp?
+
     @Query("SELECT COUNT(*) FROM tracked_apps")
     fun getCount(): Flow<Int>
 }

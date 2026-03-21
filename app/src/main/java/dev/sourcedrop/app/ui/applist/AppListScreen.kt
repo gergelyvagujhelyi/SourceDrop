@@ -44,12 +44,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
-import android.content.Intent
-import android.net.Uri
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.sourcedrop.app.data.local.entity.TrackedApp
 import dev.sourcedrop.app.ui.components.EmptyState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -64,23 +60,6 @@ fun AppListScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val context = LocalContext.current
-    val selfVersion = remember {
-        try {
-            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: ""
-        } catch (_: Exception) { "" }
-    }
-    val selfApp = remember(selfVersion) {
-        TrackedApp(
-            id = -1,
-            displayName = "SourceDrop",
-            packageName = context.packageName,
-            sourceType = TrackedApp.SOURCE_TYPE_GITHUB,
-            sourceUrl = "https://github.com/gergelyvagujhelyi/SourceDrop",
-            currentVersion = selfVersion,
-            latestKnownVersion = selfVersion
-        )
-    }
 
     LaunchedEffect(uiState.refreshError) {
         uiState.refreshError?.let {
@@ -210,26 +189,19 @@ fun AppListScreen(
                     enter = fadeIn(),
                     exit = fadeOut()
                 ) {
-                    val allApps = (uiState.apps + selfApp).sortedBy { it.displayName.lowercase() }
                     LazyColumn(
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(
-                            items = allApps,
+                            items = uiState.apps,
                             key = { it.id }
                         ) { app ->
                             AppCard(
                                 app = app,
-                                onClick = {
-                                    if (app.id != -1L) {
-                                        onAppClick(app.id)
-                                    } else {
-                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(app.sourceUrl)))
-                                    }
-                                },
+                                onClick = { onAppClick(app.id) },
                                 onDelete = {
-                                    if (app.id != -1L) viewModel.deleteApp(app.id, app.packageName)
+                                    viewModel.deleteApp(app.id, app.packageName)
                                 },
                                 isInstalled = viewModel.isPackageInstalled(app.packageName)
                             )
