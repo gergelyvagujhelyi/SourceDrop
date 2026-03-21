@@ -101,12 +101,13 @@ fun AppListScreen(
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Shield,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(28.dp)
-                        )
+                        IconButton(onClick = onDownloads) {
+                            Icon(
+                                imageVector = Icons.Default.Download,
+                                contentDescription = "Downloads",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
 
                         Box(
                             modifier = Modifier
@@ -151,13 +152,6 @@ fun AppListScreen(
                             )
                         }
 
-                        IconButton(onClick = onDownloads) {
-                            Icon(
-                                imageVector = Icons.Default.Download,
-                                contentDescription = "Downloads",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
                     }
                 }
 
