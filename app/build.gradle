@@ -13,7 +13,7 @@ if (keystorePropertiesFile.exists()) {
 }
 
 android {
-    namespace 'dev.sourcedrop.app'
+    namespace = 'dev.sourcedrop.app'
     compileSdk 36
 
     defaultConfig {
@@ -57,7 +57,7 @@ android {
     }
 
     buildFeatures {
-        compose true
+        compose = true
     }
 
     testOptions {
