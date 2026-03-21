@@ -8,6 +8,9 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import dev.sourcedrop.app.util.SafeRegex
+import dev.sourcedrop.app.util.UrlValidator
+import dev.sourcedrop.app.util.boundedBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.URLEncoder
@@ -21,6 +24,12 @@ class GitLabAdapter(private val client: OkHttpClient) : SourceAdapter {
             val (host, projectPath) = parseGitLabUrl(app.sourceUrl)
             val encodedPath = URLEncoder.encode(projectPath, "UTF-8")
             val apiUrl = "https://$host/api/v4/projects/$encodedPath/releases"
+
+            try {
+                UrlValidator.validateHost(apiUrl)
+            } catch (e: IllegalArgumentException) {
+                throw AdapterError.InvalidConfigError(e.message ?: "Invalid URL")
+            }
 
             val request = Request.Builder()
                 .url(apiUrl)
@@ -39,8 +48,7 @@ class GitLabAdapter(private val client: OkHttpClient) : SourceAdapter {
                 throw AdapterError.NetworkError("GitLab API returned $code")
             }
 
-            val body = response.body?.string()
-                ?: throw AdapterError.ParseError("Empty response from GitLab")
+            val body = response.boundedBody()
             response.close()
 
             val releases = json.parseToJsonElement(body).jsonArray
@@ -67,12 +75,7 @@ class GitLabAdapter(private val client: OkHttpClient) : SourceAdapter {
     private fun findApkLink(release: JsonObject, pattern: String): String {
         val assets = release["assets"]?.jsonObject ?: return ""
         val links = assets["links"]?.jsonArray ?: return ""
-
-        val regex = if (pattern.isNotBlank()) {
-            try { Regex(pattern, RegexOption.IGNORE_CASE) } catch (e: Exception) { null }
-        } else {
-            Regex("\\.apk$", RegexOption.IGNORE_CASE)
-        }
+        val useDefault = pattern.isBlank()
 
         for (link in links) {
             val obj = link.jsonObject
@@ -80,22 +83,22 @@ class GitLabAdapter(private val client: OkHttpClient) : SourceAdapter {
             val url = obj["direct_asset_url"]?.jsonPrimitive?.content
                 ?: obj["url"]?.jsonPrimitive?.content ?: continue
 
-            if (regex != null && (regex.containsMatchIn(name) || regex.containsMatchIn(url))) {
-                return url
+            val matches = if (useDefault) {
+                name.endsWith(".apk", ignoreCase = true) || url.endsWith(".apk", ignoreCase = true)
+            } else {
+                SafeRegex.containsMatch(pattern, name, setOf(RegexOption.IGNORE_CASE)) ||
+                    SafeRegex.containsMatch(pattern, url, setOf(RegexOption.IGNORE_CASE))
             }
+            if (matches) return url
         }
         return ""
     }
 
     private fun extractVersion(tagName: String, pattern: String): String {
         if (pattern.isBlank()) return tagName.trimStart('v', 'V')
-        return try {
-            val regex = Regex(pattern)
-            val match = regex.find(tagName)
-            match?.groupValues?.getOrNull(1) ?: match?.value ?: tagName
-        } catch (e: Exception) {
-            tagName.trimStart('v', 'V')
-        }
+        val match = SafeRegex.find(pattern, tagName) ?: return tagName.trimStart('v', 'V')
+        return match.groupValues.getOrNull(1)?.takeIf { it.isNotBlank() }
+            ?: match.value.ifBlank { tagName.trimStart('v', 'V') }
     }
 
     companion object {

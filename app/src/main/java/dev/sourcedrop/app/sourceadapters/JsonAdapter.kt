@@ -11,6 +11,8 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import dev.sourcedrop.app.util.UrlValidator
+import dev.sourcedrop.app.util.boundedBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
@@ -20,6 +22,12 @@ class JsonAdapter(private val client: OkHttpClient) : SourceAdapter {
 
     override suspend fun checkForUpdate(app: TrackedApp): AdapterResult =
         withContext(Dispatchers.IO) {
+            try {
+                UrlValidator.validateHost(app.sourceUrl)
+            } catch (e: IllegalArgumentException) {
+                throw AdapterError.InvalidConfigError(e.message ?: "Invalid URL")
+            }
+
             val request = Request.Builder()
                 .url(app.sourceUrl)
                 .build()
@@ -36,8 +44,7 @@ class JsonAdapter(private val client: OkHttpClient) : SourceAdapter {
                 throw AdapterError.NetworkError("JSON endpoint returned $code")
             }
 
-            val body = response.body?.string()
-                ?: throw AdapterError.ParseError("Empty response body")
+            val body = response.boundedBody()
             response.close()
 
             val root = try {

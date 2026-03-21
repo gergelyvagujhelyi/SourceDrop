@@ -1,5 +1,7 @@
 package dev.sourcedrop.app.sourceadapters
 
+import dev.sourcedrop.app.util.UrlValidator
+import dev.sourcedrop.app.util.boundedBody
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -62,7 +64,7 @@ class AppMetadataFetcher(private val client: OkHttpClient) {
             }
             return emptyList()
         }
-        val body = response.body?.string() ?: return emptyList()
+        val body = response.boundedBody()
         response.close()
 
         return try {
@@ -87,12 +89,14 @@ class AppMetadataFetcher(private val client: OkHttpClient) {
 
     private fun fetchGitLabVersions(host: String, projectPath: String): List<ReleaseVersion> {
         val encodedPath = URLEncoder.encode(projectPath, "UTF-8")
+        val apiUrl = "https://$host/api/v4/projects/$encodedPath/releases"
+        try { UrlValidator.validateHost(apiUrl) } catch (_: IllegalArgumentException) { return emptyList() }
         val request = Request.Builder()
-            .url("https://$host/api/v4/projects/$encodedPath/releases")
+            .url(apiUrl)
             .build()
         val response = try { client.newCall(request).execute() } catch (_: Exception) { return emptyList() }
         if (!response.isSuccessful) { response.close(); return emptyList() }
-        val body = response.body?.string() ?: return emptyList()
+        val body = response.boundedBody()
         response.close()
 
         return try {
@@ -128,7 +132,7 @@ class AppMetadataFetcher(private val client: OkHttpClient) {
                     .build()
                 val response = client.newCall(request).execute()
                 if (response.isSuccessful) {
-                    val content = response.body?.string() ?: ""
+                    val content = response.boundedBody()
                     response.close()
                     val appId = extractApplicationId(content)
                     if (appId != null) {
@@ -158,7 +162,7 @@ class AppMetadataFetcher(private val client: OkHttpClient) {
                     .build()
                 val response = client.newCall(request).execute()
                 if (response.isSuccessful) {
-                    val content = response.body?.string() ?: ""
+                    val content = response.boundedBody()
                     response.close()
                     appName = extractAppName(content)
                 } else {
@@ -178,6 +182,7 @@ class AppMetadataFetcher(private val client: OkHttpClient) {
     }
 
     private fun fetchGitLabProjectInfo(host: String, projectPath: String): ProjectInfo {
+        try { UrlValidator.validateHost("https://$host/") } catch (_: IllegalArgumentException) { return ProjectInfo(null, null) }
         val encodedPath = URLEncoder.encode(projectPath, "UTF-8")
         val modules = listOf(
             "app%2Fbuild.gradle.kts" to "app%2Fsrc%2Fmain%2Fres%2Fvalues%2Fstrings.xml",
@@ -195,7 +200,7 @@ class AppMetadataFetcher(private val client: OkHttpClient) {
                     .build()
                 val response = client.newCall(request).execute()
                 if (response.isSuccessful) {
-                    val content = response.body?.string() ?: ""
+                    val content = response.boundedBody()
                     response.close()
                     val appId = extractApplicationId(content)
                     if (appId != null) {
@@ -218,7 +223,7 @@ class AppMetadataFetcher(private val client: OkHttpClient) {
                     .build()
                 val response = client.newCall(request).execute()
                 if (response.isSuccessful) {
-                    val content = response.body?.string() ?: ""
+                    val content = response.boundedBody()
                     response.close()
                     appName = extractAppName(content)
                 } else {

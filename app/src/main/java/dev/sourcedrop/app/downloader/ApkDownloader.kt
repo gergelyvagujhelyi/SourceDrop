@@ -136,10 +136,15 @@ class ApkDownloader(private val context: Context) {
     }
 
     /**
-     * Deletes a downloaded APK file.
+     * Deletes a downloaded APK file. Validates that the path is within the
+     * expected apks directory to prevent path traversal attacks.
      */
     fun deleteApk(filePath: String): Boolean {
-        val file = File(filePath)
+        val apkDir = File(context.getExternalFilesDir(null), "apks").canonicalFile
+        val file = File(filePath).canonicalFile
+        if (!file.path.startsWith(apkDir.path + File.separator)) {
+            return false
+        }
         return if (file.exists()) file.delete() else true
     }
 

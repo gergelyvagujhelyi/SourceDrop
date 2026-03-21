@@ -10,6 +10,8 @@ import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import dev.sourcedrop.app.util.SafeRegex
+import dev.sourcedrop.app.util.boundedBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
@@ -45,8 +47,7 @@ class GitHubAdapter(private val client: OkHttpClient) : SourceAdapter {
                 throw AdapterError.NetworkError("GitHub API returned $code")
             }
 
-            val body = response.body?.string()
-                ?: throw AdapterError.ParseError("Empty response from GitHub")
+            val body = response.boundedBody()
             response.close()
 
             val releases = json.parseToJsonElement(body).jsonArray
@@ -101,16 +102,17 @@ class GitHubAdapter(private val client: OkHttpClient) : SourceAdapter {
 
     private fun findApkAsset(release: JsonObject, pattern: String): String {
         val assets = release["assets"]?.jsonArray ?: return ""
-        val regex = if (pattern.isNotBlank()) {
-            try { Regex(pattern, RegexOption.IGNORE_CASE) } catch (e: Exception) { null }
-        } else {
-            Regex("\\.apk$", RegexOption.IGNORE_CASE)
-        }
+        val useDefault = pattern.isBlank()
 
         for (asset in assets) {
             val obj = asset.jsonObject
             val name = obj["name"]?.jsonPrimitive?.content ?: continue
-            if (regex != null && regex.containsMatchIn(name)) {
+            val matches = if (useDefault) {
+                name.endsWith(".apk", ignoreCase = true)
+            } else {
+                SafeRegex.containsMatch(pattern, name, setOf(RegexOption.IGNORE_CASE))
+            }
+            if (matches) {
                 return obj["browser_download_url"]?.jsonPrimitive?.content ?: ""
             }
         }
@@ -119,13 +121,9 @@ class GitHubAdapter(private val client: OkHttpClient) : SourceAdapter {
 
     private fun extractVersion(tagName: String, pattern: String): String {
         if (pattern.isBlank()) return tagName.trimStart('v', 'V')
-        return try {
-            val regex = Regex(pattern)
-            val match = regex.find(tagName)
-            match?.groupValues?.getOrNull(1) ?: match?.value ?: tagName
-        } catch (e: Exception) {
-            tagName.trimStart('v', 'V')
-        }
+        val match = SafeRegex.find(pattern, tagName) ?: return tagName.trimStart('v', 'V')
+        return match.groupValues.getOrNull(1)?.takeIf { it.isNotBlank() }
+            ?: match.value.ifBlank { tagName.trimStart('v', 'V') }
     }
 
     private fun formatResetTime(resetHeader: String?): String {
