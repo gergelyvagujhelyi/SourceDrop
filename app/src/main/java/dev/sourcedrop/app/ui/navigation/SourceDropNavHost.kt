@@ -1,6 +1,12 @@
 package dev.sourcedrop.app.ui.navigation
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -25,16 +31,27 @@ fun SourceDropNavHost(container: AppContainer) {
 
     NavHost(
         navController = navController,
-        startDestination = AppListRoute
+        startDestination = AppListRoute,
+        enterTransition = { fadeIn(animationSpec = tween(350)) },
+        exitTransition = { fadeOut(animationSpec = tween(350)) },
+        popEnterTransition = { fadeIn(animationSpec = tween(350)) },
+        popExitTransition = { fadeOut(animationSpec = tween(350)) }
     ) {
         composable<AppListRoute> {
+            val context = LocalContext.current
+            val selfPackageName = context.packageName
+            val selfVersion = try {
+                context.packageManager.getPackageInfo(selfPackageName, 0).versionName ?: ""
+            } catch (_: Exception) { "" }
             val viewModel: AppListViewModel = viewModel(
                 factory = AppListViewModel.factory(
                     container.trackedAppRepository,
                     container.updateEventRepository,
                     container.sourceAdapterFactory,
                     container.apkDownloader,
-                    container.apkInstaller
+                    container.apkInstaller,
+                    selfPackageName,
+                    selfVersion
                 )
             )
             AppListScreen(
@@ -102,7 +119,12 @@ fun SourceDropNavHost(container: AppContainer) {
             )
         }
 
-        composable<SettingsRoute> {
+        composable<SettingsRoute>(
+            enterTransition = { slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(300)) },
+            exitTransition = { fadeOut(animationSpec = tween(350)) },
+            popEnterTransition = { fadeIn(animationSpec = tween(350)) },
+            popExitTransition = { slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(300)) }
+        ) {
             val viewModel: SettingsViewModel = viewModel(
                 factory = SettingsViewModel.factory(
                     container.preferences,

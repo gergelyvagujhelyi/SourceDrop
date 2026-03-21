@@ -1,23 +1,27 @@
 package dev.sourcedrop.app.ui.applist
 
+import android.graphics.drawable.BitmapDrawable
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.NewReleases
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -28,13 +32,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.painter.BitmapPainter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.sourcedrop.app.data.local.entity.TrackedApp
 import dev.sourcedrop.app.util.VersionComparator
-import java.text.DateFormat
-import java.util.Date
 
 @Composable
 fun AppCard(
@@ -89,35 +95,74 @@ fun AppCard(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
+        ),
+        shape = MaterialTheme.shapes.medium
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.Top
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            // App icon
+            val context = LocalContext.current
+            val appIconBitmap = remember(app.packageName) {
+                if (app.packageName.isNotBlank()) {
+                    try {
+                        val drawable = context.packageManager.getApplicationIcon(app.packageName)
+                        if (drawable is BitmapDrawable) {
+                            drawable.bitmap
+                        } else {
+                            val bmp = android.graphics.Bitmap.createBitmap(
+                                drawable.intrinsicWidth, drawable.intrinsicHeight,
+                                android.graphics.Bitmap.Config.ARGB_8888
+                            )
+                            val canvas = android.graphics.Canvas(bmp)
+                            drawable.setBounds(0, 0, canvas.width, canvas.height)
+                            drawable.draw(canvas)
+                            bmp
+                        }
+                    } catch (_: Exception) { null }
+                } else null
+            }
+            if (appIconBitmap != null) {
+                Image(
+                    painter = BitmapPainter(appIconBitmap.asImageBitmap()),
+                    contentDescription = app.displayName,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = app.displayName,
+                        text = app.displayName.firstOrNull()?.uppercase() ?: "?",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false)
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
                     )
-                    if (hasUpdate) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Icon(
-                            imageVector = Icons.Default.NewReleases,
-                            contentDescription = "Update available",
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
                 }
+            }
 
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Name, package, versions, and source
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = app.displayName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 if (app.packageName.isNotBlank()) {
                     Text(
                         text = app.packageName,
@@ -127,76 +172,58 @@ fun AppCard(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    VersionLabel(
-                        label = "Current",
-                        version = app.currentVersion.ifBlank { "—" }
-                    )
-                    VersionLabel(
-                        label = "Latest",
-                        version = app.latestKnownVersion.ifBlank { "—" },
-                        isHighlighted = hasUpdate
-                    )
-                }
-
-                if (app.lastCheckedAt > 0) {
-                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Checked: ${formatTimestamp(app.lastCheckedAt)}",
+                        text = app.currentVersion.ifBlank { "—" } + " → " + app.latestKnownVersion.ifBlank { "—" },
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (hasUpdate) MaterialTheme.colorScheme.primary
+                                else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = sourceTypeLabel(app.sourceType),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.outline
                     )
                 }
-
-                Text(
-                    text = sourceTypeLabel(app.sourceType),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.outline
-                )
             }
 
-            IconButton(onClick = { showDeleteDialog = true }) {
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Status icons
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (hasUpdate) {
+                    Icon(
+                        imageVector = Icons.Default.NewReleases,
+                        contentDescription = "Update available",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                } else if (app.latestKnownVersion.isNotBlank()) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = "Up to date",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "Delete",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clickable { showDeleteDialog = true }
                 )
             }
         }
     }
-}
-
-@Composable
-private fun VersionLabel(
-    label: String,
-    version: String,
-    isHighlighted: Boolean = false
-) {
-    Column {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = version,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = if (isHighlighted) FontWeight.Bold else FontWeight.Normal,
-            color = if (isHighlighted) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurface
-        )
-    }
-}
-
-private fun formatTimestamp(millis: Long): String {
-    return DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
-        .format(Date(millis))
 }
 
 private fun sourceTypeLabel(type: String): String = when (type) {
