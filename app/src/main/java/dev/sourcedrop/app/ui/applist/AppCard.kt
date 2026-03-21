@@ -106,9 +106,18 @@ fun AppCard(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // App icon
+            // App icon — refresh on activity resume so icons appear after install
             val context = LocalContext.current
-            val appIconBitmap = remember(app.packageName) {
+            val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+            var iconRefreshKey by remember { mutableStateOf(0) }
+            androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+                val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                    if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) iconRefreshKey++
+                }
+                lifecycleOwner.lifecycle.addObserver(observer)
+                onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+            }
+            val appIconBitmap = remember(app.packageName, iconRefreshKey) {
                 if (app.packageName.isNotBlank()) {
                     try {
                         val drawable = context.packageManager.getApplicationIcon(app.packageName)
