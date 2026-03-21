@@ -35,8 +35,13 @@ class GitHubAdapter(private val client: OkHttpClient) : SourceAdapter {
 
             if (!response.isSuccessful) {
                 val code = response.code
+                val resetHeader = response.header("x-ratelimit-reset")
                 response.close()
                 if (code == 404) throw AdapterError.NotFoundError("Repository not found: $owner/$repo")
+                if (code == 403 || code == 429) {
+                    val resetInfo = formatResetTime(resetHeader)
+                    throw AdapterError.RateLimitError("GitHub API rate limit exceeded. Resets $resetInfo")
+                }
                 throw AdapterError.NetworkError("GitHub API returned $code")
             }
 
@@ -121,6 +126,15 @@ class GitHubAdapter(private val client: OkHttpClient) : SourceAdapter {
         } catch (e: Exception) {
             tagName.trimStart('v', 'V')
         }
+    }
+
+    private fun formatResetTime(resetHeader: String?): String {
+        val resetEpoch = resetHeader?.toLongOrNull() ?: return "soon"
+        val now = System.currentTimeMillis() / 1000
+        val diff = resetEpoch - now
+        if (diff <= 0) return "soon"
+        val minutes = (diff + 59) / 60
+        return "in $minutes min"
     }
 
     companion object {

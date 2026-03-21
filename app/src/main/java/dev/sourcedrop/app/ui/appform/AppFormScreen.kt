@@ -4,15 +4,19 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -20,7 +24,9 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -34,8 +40,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.sourcedrop.app.data.local.entity.TrackedApp
@@ -54,12 +60,263 @@ fun AppFormScreen(
         }
     }
 
+    if (uiState.isEditing) {
+        EditFormScreen(viewModel = viewModel, uiState = uiState, onNavigateBack = onNavigateBack)
+    } else {
+        AddWizardScreen(viewModel = viewModel, uiState = uiState, onNavigateBack = onNavigateBack)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AddWizardScreen(
+    viewModel: AppFormViewModel,
+    uiState: AppFormUiState,
+    onNavigateBack: () -> Unit
+) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(if (uiState.isEditing) "Edit App" else "Add App")
-                },
+                title = { Text("Add App — Step ${uiState.step} of 2") },
+                navigationIcon = {
+                    IconButton(onClick = {
+                        if (uiState.step > 1) viewModel.previousStep() else onNavigateBack()
+                    }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                }
+            )
+        }
+    ) { innerPadding ->
+        when (uiState.step) {
+            1 -> StepUrl(
+                uiState = uiState,
+                onUrlChange = viewModel::updateSourceUrl,
+                onNext = { viewModel.nextStep() },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 16.dp)
+            )
+            2 -> StepDetails(
+                uiState = uiState,
+                onNameChange = viewModel::updateDisplayName,
+                onPackageChange = viewModel::updatePackageName,
+                onVersionSelect = viewModel::selectVersion,
+                onSave = viewModel::save,
+                onSaveAndInstall = viewModel::saveAndInstall,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 16.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun StepUrl(
+    uiState: AppFormUiState,
+    onUrlChange: (String) -> Unit,
+    onNext: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Paste the repository URL",
+            style = MaterialTheme.typography.headlineSmall
+        )
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        Text(
+            text = "GitHub, GitLab, or a direct link",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        OutlinedTextField(
+            value = uiState.sourceUrl,
+            onValueChange = onUrlChange,
+            label = { Text("URL") },
+            placeholder = { Text("https://github.com/owner/repo") },
+            isError = uiState.errors.containsKey("sourceUrl"),
+            supportingText = uiState.errors["sourceUrl"]?.let { { Text(it) } }
+                ?: uiState.fetchError?.let { { Text(it, color = MaterialTheme.colorScheme.error) } },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
+            keyboardActions = KeyboardActions(onGo = { onNext() }),
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = onNext,
+            enabled = !uiState.isFetching,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            if (uiState.isFetching) {
+                CircularProgressIndicator(
+                    modifier = Modifier.height(20.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                Text("Next")
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun StepDetails(
+    uiState: AppFormUiState,
+    onNameChange: (String) -> Unit,
+    onPackageChange: (String) -> Unit,
+    onVersionSelect: (Int) -> Unit,
+    onSave: () -> Unit,
+    onSaveAndInstall: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Spacer(modifier = Modifier.height(4.dp))
+
+        OutlinedTextField(
+            value = uiState.displayName,
+            onValueChange = onNameChange,
+            label = { Text("App Name") },
+            isError = uiState.errors.containsKey("displayName"),
+            supportingText = uiState.errors["displayName"]?.let { { Text(it) } },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        OutlinedTextField(
+            value = uiState.packageName,
+            onValueChange = onPackageChange,
+            label = { Text("Package Name") },
+            placeholder = { Text("com.example.app") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        if (uiState.isAppInstalled) {
+            OutlinedTextField(
+                value = "${uiState.currentVersion} — already installed",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Version") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        } else if (uiState.availableVersions.isNotEmpty()) {
+            var expanded by remember { mutableStateOf(false) }
+            val selected = uiState.availableVersions.getOrNull(uiState.selectedVersionIndex)
+
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = it },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                OutlinedTextField(
+                    value = selected?.let { "${it.version}${if (it.isPreRelease) " (pre-release)" else ""}" } ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    label = { Text("Version") },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .menuAnchor(MenuAnchorType.PrimaryNotEditable)
+                )
+
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    uiState.availableVersions.forEachIndexed { index, ver ->
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    "${ver.version}${if (ver.isPreRelease) " (pre-release)" else ""}",
+                                    color = if (ver.isPreRelease) MaterialTheme.colorScheme.onSurfaceVariant
+                                    else MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            onClick = {
+                                onVersionSelect(index)
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
+        } else {
+            OutlinedTextField(
+                value = uiState.currentVersion,
+                onValueChange = {},
+                label = { Text("Version") },
+                placeholder = { Text("No versions found") },
+                readOnly = true,
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        val selectedVersion = uiState.availableVersions.getOrNull(uiState.selectedVersionIndex)
+        val hasApk = selectedVersion?.apkUrl?.isNotBlank() == true
+        val showInstall = !uiState.isAppInstalled && hasApk
+
+        Button(
+            onClick = if (showInstall) onSaveAndInstall else onSave,
+            enabled = !uiState.isDownloading,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            if (uiState.isDownloading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.height(20.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+                Text(
+                    text = "  Downloading… ${uiState.downloadProgress}%",
+                    modifier = Modifier.padding(start = 8.dp)
+                )
+            } else {
+                Text(if (showInstall) "Add & Install" else "Add App")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditFormScreen(
+    viewModel: AppFormViewModel,
+    uiState: AppFormUiState,
+    onNavigateBack: () -> Unit
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Edit App") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -172,17 +429,6 @@ fun AppFormScreen(
                     placeholder = { Text("v([\\d.]+)") },
                     supportingText = { Text("Regex to extract version from release tag or page") },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                OutlinedTextField(
-                    value = uiState.checkIntervalHours.toString(),
-                    onValueChange = { value ->
-                        value.toIntOrNull()?.let { viewModel.updateCheckIntervalHours(it) }
-                    },
-                    label = { Text("Check Interval (hours)") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth()
                 )
 

@@ -79,6 +79,15 @@ class ApkInstaller(private val context: Context) {
         }
     }
 
+    fun getInstalledVersion(packageName: String): String? {
+        if (packageName.isBlank()) return null
+        return try {
+            context.packageManager.getPackageInfo(packageName, 0).versionName
+        } catch (e: android.content.pm.PackageManager.NameNotFoundException) {
+            null
+        }
+    }
+
     fun launchUninstall(packageName: String): Boolean {
         if (packageName.isBlank()) return false
         return try {
