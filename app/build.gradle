@@ -59,6 +59,10 @@ android {
     buildFeatures {
         compose true
     }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
 }
 
 ksp {
