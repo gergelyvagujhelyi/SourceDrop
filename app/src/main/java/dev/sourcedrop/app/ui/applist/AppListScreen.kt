@@ -44,8 +44,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.sourcedrop.app.data.local.entity.TrackedApp
 import dev.sourcedrop.app.ui.components.EmptyState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,6 +62,23 @@ fun AppListScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    val selfVersion = remember {
+        try {
+            context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: ""
+        } catch (_: Exception) { "" }
+    }
+    val selfApp = remember(selfVersion) {
+        TrackedApp(
+            id = -1,
+            displayName = "SourceDrop",
+            packageName = context.packageName,
+            sourceType = TrackedApp.SOURCE_TYPE_GITHUB,
+            sourceUrl = "https://github.com/gergelyvagujhelyi/SourceDrop",
+            currentVersion = selfVersion,
+            latestKnownVersion = selfVersion
+        )
+    }
 
     LaunchedEffect(uiState.refreshError) {
         uiState.refreshError?.let {
@@ -193,6 +212,14 @@ fun AppListScreen(
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        item(key = "self") {
+                            AppCard(
+                                app = selfApp,
+                                onClick = { },
+                                onDelete = { },
+                                isInstalled = true
+                            )
+                        }
                         items(
                             items = uiState.apps,
                             key = { it.id }
