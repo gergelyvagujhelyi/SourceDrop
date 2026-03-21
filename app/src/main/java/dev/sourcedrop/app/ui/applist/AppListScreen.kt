@@ -208,27 +208,20 @@ fun AppListScreen(
                     enter = fadeIn(),
                     exit = fadeOut()
                 ) {
+                    val allApps = (uiState.apps + selfApp).sortedBy { it.displayName.lowercase() }
                     LazyColumn(
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        item(key = "self") {
-                            AppCard(
-                                app = selfApp,
-                                onClick = { },
-                                onDelete = { },
-                                isInstalled = true
-                            )
-                        }
                         items(
-                            items = uiState.apps,
+                            items = allApps,
                             key = { it.id }
                         ) { app ->
                             AppCard(
                                 app = app,
-                                onClick = { onAppClick(app.id) },
+                                onClick = { if (app.id != -1L) onAppClick(app.id) },
                                 onDelete = {
-                                    viewModel.deleteApp(app.id, app.packageName)
+                                    if (app.id != -1L) viewModel.deleteApp(app.id, app.packageName)
                                 },
                                 isInstalled = viewModel.isPackageInstalled(app.packageName)
                             )
