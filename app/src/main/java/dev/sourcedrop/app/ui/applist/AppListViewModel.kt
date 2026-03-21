@@ -27,13 +27,20 @@ class AppListViewModel(
 ) : ViewModel() {
 
     private val _refreshState = MutableStateFlow(RefreshState())
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery = _searchQuery
 
     val uiState = combine(
         repository.getAllApps(),
-        _refreshState
-    ) { apps, refresh ->
+        _refreshState,
+        _searchQuery
+    ) { apps, refresh, query ->
+        val filtered = if (query.isBlank()) apps else apps.filter {
+            it.displayName.contains(query, ignoreCase = true) ||
+                it.packageName.contains(query, ignoreCase = true)
+        }
         AppListUiState(
-            apps = apps,
+            apps = filtered,
             isLoading = false,
             isRefreshing = refresh.isRefreshing,
             refreshError = refresh.error
@@ -43,6 +50,10 @@ class AppListViewModel(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = AppListUiState()
     )
+
+    fun updateSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
 
     fun isPackageInstalled(packageName: String): Boolean {
         return apkInstaller.isPackageInstalled(packageName)
