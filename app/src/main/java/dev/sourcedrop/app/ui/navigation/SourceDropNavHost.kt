@@ -85,7 +85,7 @@ fun SourceDropNavHost(container: AppContainer) {
 
         composable<AddAppRoute> {
             val viewModel: AppFormViewModel = viewModel(
-                factory = AppFormViewModel.factory(container.trackedAppRepository, null, container.appMetadataFetcher)
+                factory = AppFormViewModel.factory(container.trackedAppRepository, container.updateEventRepository, container.apkDownloader, container.apkInstaller, null, container.appMetadataFetcher)
             )
             AppFormScreen(
                 viewModel = viewModel,
@@ -96,7 +96,7 @@ fun SourceDropNavHost(container: AppContainer) {
         composable<EditAppRoute> { backStackEntry ->
             val route = backStackEntry.toRoute<EditAppRoute>()
             val viewModel: AppFormViewModel = viewModel(
-                factory = AppFormViewModel.factory(container.trackedAppRepository, route.appId, container.appMetadataFetcher)
+                factory = AppFormViewModel.factory(container.trackedAppRepository, container.updateEventRepository, container.apkDownloader, container.apkInstaller, route.appId, container.appMetadataFetcher)
             )
             AppFormScreen(
                 viewModel = viewModel,

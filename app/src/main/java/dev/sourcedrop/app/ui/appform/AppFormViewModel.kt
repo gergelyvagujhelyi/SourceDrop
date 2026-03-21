@@ -4,7 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import dev.sourcedrop.app.data.local.entity.TrackedApp
+import dev.sourcedrop.app.data.local.entity.UpdateEvent
 import dev.sourcedrop.app.data.repository.TrackedAppRepository
+import dev.sourcedrop.app.data.repository.UpdateEventRepository
+import dev.sourcedrop.app.downloader.ApkDownloader
+import dev.sourcedrop.app.downloader.DownloadStatus
+import dev.sourcedrop.app.installer.ApkInstaller
+import dev.sourcedrop.app.sourceadapters.AdapterError
 import dev.sourcedrop.app.sourceadapters.AppMetadataFetcher
 import dev.sourcedrop.app.sourceadapters.GitHubAdapter
 import dev.sourcedrop.app.sourceadapters.GitLabAdapter
@@ -18,6 +24,9 @@ import kotlinx.coroutines.launch
 
 class AppFormViewModel(
     private val repository: TrackedAppRepository,
+    private val updateEventRepository: UpdateEventRepository,
+    private val apkDownloader: ApkDownloader,
+    private val apkInstaller: ApkInstaller,
     private val appId: Long?,
     private val metadataFetcher: AppMetadataFetcher
 ) : ViewModel() {
@@ -72,13 +81,16 @@ class AppFormViewModel(
 
     fun updateSourceType(value: String) {
         _uiState.update { it.copy(sourceType = value) }
-        // Re-trigger autofill when source type changes
-        autoFillFromUrl(_uiState.value.sourceUrl)
+        if (_uiState.value.isEditing) {
+            autoFillFromUrl(_uiState.value.sourceUrl)
+        }
     }
 
     fun updateSourceUrl(value: String) {
         _uiState.update { it.copy(sourceUrl = value, errors = it.errors - "sourceUrl") }
-        autoFillFromUrl(value)
+        if (_uiState.value.isEditing) {
+            autoFillFromUrl(value)
+        }
     }
 
     fun updateApkUrl(value: String) {
@@ -103,6 +115,113 @@ class AppFormViewModel(
 
     fun updateIncludePreReleases(value: Boolean) {
         _uiState.update { it.copy(includePreReleases = value) }
+    }
+
+    fun selectVersion(index: Int) {
+        val state = _uiState.value
+        if (index in state.availableVersions.indices) {
+            val ver = state.availableVersions[index]
+            _uiState.update {
+                if (it.isAppInstalled) {
+                    it.copy(selectedVersionIndex = index, apkUrl = ver.apkUrl)
+                } else {
+                    it.copy(selectedVersionIndex = index, currentVersion = ver.version, apkUrl = ver.apkUrl)
+                }
+            }
+        }
+    }
+
+    fun nextStep() {
+        val state = _uiState.value
+        if (state.isEditing) return
+
+        when (state.step) {
+            1 -> {
+                val url = state.sourceUrl.trim()
+                if (url.isBlank()) {
+                    _uiState.update { it.copy(errors = mapOf("sourceUrl" to "URL is required")) }
+                    return
+                }
+                if (!isValidUrl(url)) {
+                    _uiState.update { it.copy(errors = mapOf("sourceUrl" to "Invalid URL format")) }
+                    return
+                }
+                // Detect source type from URL
+                val sourceType = detectSourceType(url)
+                _uiState.update { it.copy(sourceType = sourceType, sourceUrl = url, isFetching = true, fetchError = null, errors = emptyMap()) }
+                fetchMetadata(url, sourceType)
+            }
+        }
+    }
+
+    fun previousStep() {
+        val state = _uiState.value
+        if (state.step > 1) {
+            _uiState.update { it.copy(step = state.step - 1, fetchError = null) }
+        }
+    }
+
+    private fun detectSourceType(url: String): String {
+        val lower = url.lowercase()
+        return when {
+            lower.contains("github.com") -> TrackedApp.SOURCE_TYPE_GITHUB
+            lower.contains("gitlab.com") || lower.contains("gitlab") -> TrackedApp.SOURCE_TYPE_GITLAB
+            lower.endsWith(".apk") -> TrackedApp.SOURCE_TYPE_DIRECT_APK
+            lower.endsWith(".json") -> TrackedApp.SOURCE_TYPE_JSON
+            else -> TrackedApp.SOURCE_TYPE_HTML
+        }
+    }
+
+    private fun fetchMetadata(url: String, sourceType: String) {
+        viewModelScope.launch {
+            try {
+                val metadata = when (sourceType) {
+                    TrackedApp.SOURCE_TYPE_GITHUB -> {
+                        val (owner, repo) = GitHubAdapter.parseOwnerRepo(url)
+                        metadataFetcher.fetchFromGitHub(owner, repo)
+                    }
+                    TrackedApp.SOURCE_TYPE_GITLAB -> {
+                        val (host, path) = GitLabAdapter.parseGitLabUrl(url)
+                        metadataFetcher.fetchFromGitLab(host, path)
+                    }
+                    else -> null
+                }
+
+                if (metadata != null) {
+                    val stableVersions = metadata.versions.filter { !it.isPreRelease }
+                    val versions = stableVersions.ifEmpty { metadata.versions }
+                    val latestVersion = versions.firstOrNull()
+                    val pkgName = metadata.packageName ?: ""
+                    val installed = pkgName.isNotBlank() && apkInstaller.isPackageInstalled(pkgName)
+                    val installedVersion = if (installed) apkInstaller.getInstalledVersion(pkgName) else null
+                    val installedName = if (installed) apkInstaller.getInstalledAppName(pkgName) else null
+                    _uiState.update {
+                        it.copy(
+                            step = 2,
+                            isFetching = false,
+                            displayName = installedName ?: metadata.displayName ?: "",
+                            packageName = pkgName,
+                            availableVersions = versions,
+                            selectedVersionIndex = 0,
+                            currentVersion = installedVersion ?: latestVersion?.version ?: "",
+                            apkUrl = latestVersion?.apkUrl ?: "",
+                            isAppInstalled = installed
+                        )
+                    }
+                } else {
+                    // For non-GitHub/GitLab sources, go to step 2 with no versions
+                    _uiState.update { it.copy(step = 2, isFetching = false) }
+                }
+            } catch (e: AdapterError.RateLimitError) {
+                _uiState.update {
+                    it.copy(isFetching = false, fetchError = e.message)
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(isFetching = false, fetchError = "Failed to fetch: ${e.message}")
+                }
+            }
+        }
     }
 
     private fun autoFillFromUrl(url: String) {
@@ -164,27 +283,140 @@ class AppFormViewModel(
                 checkIntervalHours = state.checkIntervalHours,
                 includePreReleases = state.includePreReleases,
                 updatedAt = now
-            ) ?: TrackedApp(
+            ) ?: run {
+                val selectedVersion = state.availableVersions.getOrNull(state.selectedVersionIndex)
+                val latestVersion = state.availableVersions.firstOrNull()?.version ?: state.currentVersion.trim()
+                TrackedApp(
+                    displayName = state.displayName.trim(),
+                    packageName = state.packageName.trim(),
+                    sourceType = state.sourceType,
+                    sourceUrl = state.sourceUrl.trim(),
+                    apkUrl = state.apkUrl.trim(),
+                    versionPattern = state.versionPattern.trim(),
+                    assetMatchPattern = state.assetMatchPattern.trim(),
+                    currentVersion = state.currentVersion.trim(),
+                    latestKnownVersion = latestVersion,
+                    checkIntervalHours = state.checkIntervalHours,
+                    includePreReleases = state.includePreReleases,
+                    createdAt = now,
+                    updatedAt = now
+                )
+            }
+
+            if (existingApp != null) {
+                repository.updateApp(app)
+            } else {
+                val appId = repository.insertApp(app)
+                // Create an UpdateEvent for the selected version
+                val selectedVersion = state.availableVersions.getOrNull(state.selectedVersionIndex)
+                if (selectedVersion != null) {
+                    updateEventRepository.insertEvent(
+                        UpdateEvent(
+                            trackedAppId = appId,
+                            detectedVersion = selectedVersion.version,
+                            releaseNotes = selectedVersion.releaseNotes,
+                            apkUrl = selectedVersion.apkUrl,
+                            detectedAt = now
+                        )
+                    )
+                }
+            }
+            _uiState.update { it.copy(isSaved = true) }
+        }
+    }
+
+    fun saveAndInstall() {
+        val state = _uiState.value
+        val errors = validate(state)
+        if (errors.isNotEmpty()) {
+            _uiState.update { it.copy(errors = errors) }
+            return
+        }
+
+        val selectedVersion = state.availableVersions.getOrNull(state.selectedVersionIndex)
+        val apkUrl = selectedVersion?.apkUrl ?: state.apkUrl.trim()
+        if (apkUrl.isBlank()) {
+            save()
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isDownloading = true, downloadProgress = 0) }
+
+            val now = System.currentTimeMillis()
+            val latestVersion = state.availableVersions.firstOrNull()?.version ?: state.currentVersion.trim()
+            val app = TrackedApp(
                 displayName = state.displayName.trim(),
                 packageName = state.packageName.trim(),
                 sourceType = state.sourceType,
                 sourceUrl = state.sourceUrl.trim(),
-                apkUrl = state.apkUrl.trim(),
+                apkUrl = apkUrl,
                 versionPattern = state.versionPattern.trim(),
                 assetMatchPattern = state.assetMatchPattern.trim(),
                 currentVersion = state.currentVersion.trim(),
+                latestKnownVersion = latestVersion,
                 checkIntervalHours = state.checkIntervalHours,
                 includePreReleases = state.includePreReleases,
                 createdAt = now,
                 updatedAt = now
             )
+            val newAppId = repository.insertApp(app)
 
-            if (existingApp != null) {
-                repository.updateApp(app)
-            } else {
-                repository.insertApp(app)
+            var event: UpdateEvent? = null
+            if (selectedVersion != null) {
+                val ev = UpdateEvent(
+                    trackedAppId = newAppId,
+                    detectedVersion = selectedVersion.version,
+                    releaseNotes = selectedVersion.releaseNotes,
+                    apkUrl = apkUrl,
+                    detectedAt = now
+                )
+                val eventId = updateEventRepository.insertEvent(ev)
+                event = ev.copy(id = eventId)
             }
-            _uiState.update { it.copy(isSaved = true) }
+
+            val downloadId = apkDownloader.enqueueDownload(
+                apkUrl,
+                state.displayName.trim(),
+                state.currentVersion.trim()
+            )
+
+            if (event != null) {
+                event = event.copy(downloadStatus = UpdateEvent.DOWNLOAD_IN_PROGRESS, downloadId = downloadId)
+                updateEventRepository.updateEvent(event)
+            }
+
+            apkDownloader.observeProgress(downloadId).collect { progress ->
+                _uiState.update { it.copy(downloadProgress = progress.progress) }
+
+                when (progress.status) {
+                    DownloadStatus.COMPLETE -> {
+                        val filePath = apkDownloader.getDownloadedFilePath(downloadId) ?: ""
+                        if (event != null) {
+                            updateEventRepository.updateEvent(
+                                event.copy(
+                                    downloadStatus = UpdateEvent.DOWNLOAD_COMPLETE,
+                                    localApkPath = filePath
+                                )
+                            )
+                        }
+                        _uiState.update { it.copy(isDownloading = false, downloadProgress = 100) }
+                        if (filePath.isNotBlank()) {
+                            apkInstaller.launchInstall(filePath)
+                        }
+                        _uiState.update { it.copy(isSaved = true) }
+                    }
+                    DownloadStatus.FAILED, DownloadStatus.CANCELLED -> {
+                        if (event != null) {
+                            updateEventRepository.updateEvent(
+                                event.copy(downloadStatus = UpdateEvent.DOWNLOAD_FAILED)
+                            )
+                        }
+                        _uiState.update { it.copy(isDownloading = false, isSaved = true) }
+                    }
+                    else -> {}
+                }
+            }
         }
     }
 
@@ -216,13 +448,16 @@ class AppFormViewModel(
     companion object {
         fun factory(
             repository: TrackedAppRepository,
+            updateEventRepository: UpdateEventRepository,
+            apkDownloader: ApkDownloader,
+            apkInstaller: ApkInstaller,
             appId: Long?,
             metadataFetcher: AppMetadataFetcher
         ): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    return AppFormViewModel(repository, appId, metadataFetcher) as T
+                    return AppFormViewModel(repository, updateEventRepository, apkDownloader, apkInstaller, appId, metadataFetcher) as T
                 }
             }
         }

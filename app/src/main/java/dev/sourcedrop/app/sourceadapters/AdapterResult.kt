@@ -13,4 +13,5 @@ sealed class AdapterError(override val message: String) : Exception(message) {
     class ParseError(message: String) : AdapterError(message)
     class NotFoundError(message: String) : AdapterError(message)
     class InvalidConfigError(message: String) : AdapterError(message)
+    class RateLimitError(message: String) : AdapterError(message)
 }
