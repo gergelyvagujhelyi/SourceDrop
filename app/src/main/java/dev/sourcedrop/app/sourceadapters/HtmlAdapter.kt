@@ -1,6 +1,9 @@
 package dev.sourcedrop.app.sourceadapters
 
 import dev.sourcedrop.app.data.local.entity.TrackedApp
+import dev.sourcedrop.app.util.SafeRegex
+import dev.sourcedrop.app.util.UrlValidator
+import dev.sourcedrop.app.util.boundedBody
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -14,6 +17,12 @@ class HtmlAdapter(private val client: OkHttpClient) : SourceAdapter {
                 throw AdapterError.InvalidConfigError(
                     "Version pattern (regex) is required for HTML source type"
                 )
+            }
+
+            try {
+                UrlValidator.validateHost(app.sourceUrl)
+            } catch (e: IllegalArgumentException) {
+                throw AdapterError.InvalidConfigError(e.message ?: "Invalid URL")
             }
 
             val request = Request.Builder()
@@ -33,8 +42,7 @@ class HtmlAdapter(private val client: OkHttpClient) : SourceAdapter {
                 throw AdapterError.NetworkError("Page returned $code")
             }
 
-            val html = response.body?.string()
-                ?: throw AdapterError.ParseError("Empty page body")
+            val html = response.boundedBody()
             response.close()
 
             val version = extractWithRegex(html, app.versionPattern)
@@ -64,15 +72,9 @@ class HtmlAdapter(private val client: OkHttpClient) : SourceAdapter {
 
     companion object {
         fun extractWithRegex(content: String, pattern: String): String? {
-            return try {
-                val regex = Regex(pattern)
-                val match = regex.find(content)
-                // Prefer capture group 1, fallback to full match
-                match?.groupValues?.getOrNull(1)?.takeIf { it.isNotBlank() }
-                    ?: match?.value
-            } catch (e: Exception) {
-                null
-            }
+            val match = SafeRegex.find(pattern, content) ?: return null
+            return match.groupValues.getOrNull(1)?.takeIf { it.isNotBlank() }
+                ?: match.value
         }
 
         fun resolveRelativeUrl(baseUrl: String, relative: String): String {

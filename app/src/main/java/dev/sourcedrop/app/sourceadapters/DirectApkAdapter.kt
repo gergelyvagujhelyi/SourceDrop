@@ -1,6 +1,8 @@
 package dev.sourcedrop.app.sourceadapters
 
 import dev.sourcedrop.app.data.local.entity.TrackedApp
+import dev.sourcedrop.app.util.SafeRegex
+import dev.sourcedrop.app.util.UrlValidator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -13,6 +15,12 @@ class DirectApkAdapter(private val client: OkHttpClient) : SourceAdapter {
             val url = app.apkUrl.ifBlank { app.sourceUrl }
             if (url.isBlank()) {
                 throw AdapterError.InvalidConfigError("No APK URL configured")
+            }
+
+            try {
+                UrlValidator.validateHost(url)
+            } catch (e: IllegalArgumentException) {
+                throw AdapterError.InvalidConfigError(e.message ?: "Invalid URL")
             }
 
             // HEAD request to verify the URL is reachable
@@ -53,12 +61,8 @@ class DirectApkAdapter(private val client: OkHttpClient) : SourceAdapter {
         }
 
     private fun extractVersionFromUrl(url: String, pattern: String): String {
-        return try {
-            val regex = Regex(pattern)
-            val match = regex.find(url)
-            match?.groupValues?.getOrNull(1) ?: match?.value ?: "available"
-        } catch (e: Exception) {
-            "available"
-        }
+        val match = SafeRegex.find(pattern, url) ?: return "available"
+        return match.groupValues.getOrNull(1)?.takeIf { it.isNotBlank() }
+            ?: match.value.ifBlank { "available" }
     }
 }

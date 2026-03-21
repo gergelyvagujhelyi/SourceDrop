@@ -10,6 +10,7 @@ import dev.sourcedrop.app.data.repository.UpdateEventRepository
 import dev.sourcedrop.app.downloader.ApkDownloader
 import dev.sourcedrop.app.downloader.DownloadStatus
 import dev.sourcedrop.app.installer.ApkInstaller
+import dev.sourcedrop.app.installer.ApkVerifier
 import dev.sourcedrop.app.sourceadapters.AdapterError
 import dev.sourcedrop.app.sourceadapters.SourceAdapterFactory
 import dev.sourcedrop.app.util.VersionComparator
@@ -27,6 +28,7 @@ class AppDetailViewModel(
     private val adapterFactory: SourceAdapterFactory,
     private val apkDownloader: ApkDownloader,
     private val apkInstaller: ApkInstaller,
+    private val apkVerifier: ApkVerifier,
     private val installedVersionDetector: dev.sourcedrop.app.util.InstalledVersionDetector
 ) : ViewModel() {
 
@@ -203,6 +205,23 @@ class AppDetailViewModel(
             return
         }
 
+        // Verify APK signature matches the installed version
+        val app = _uiState.value.app
+        if (app != null && app.packageName.isNotBlank()) {
+            when (val result = apkVerifier.verify(event.localApkPath, app.packageName)) {
+                is ApkVerifier.Result.SignatureMismatch -> {
+                    _uiState.update { it.copy(checkError = "Security: ${result.message}") }
+                    return
+                }
+                is ApkVerifier.Result.Error -> {
+                    _uiState.update { it.copy(checkError = "Verification failed: ${result.message}") }
+                    return
+                }
+                is ApkVerifier.Result.Success,
+                is ApkVerifier.Result.NotInstalled -> { /* proceed */ }
+            }
+        }
+
         val success = apkInstaller.launchInstall(event.localApkPath)
         if (success) {
             viewModelScope.launch {
@@ -268,6 +287,7 @@ class AppDetailViewModel(
             adapterFactory: SourceAdapterFactory,
             apkDownloader: ApkDownloader,
             apkInstaller: ApkInstaller,
+            apkVerifier: ApkVerifier,
             installedVersionDetector: dev.sourcedrop.app.util.InstalledVersionDetector
         ): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
@@ -275,7 +295,7 @@ class AppDetailViewModel(
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     return AppDetailViewModel(
                         appId, trackedAppRepository, updateEventRepository,
-                        adapterFactory, apkDownloader, apkInstaller,
+                        adapterFactory, apkDownloader, apkInstaller, apkVerifier,
                         installedVersionDetector
                     ) as T
                 }

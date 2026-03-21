@@ -8,6 +8,7 @@ import dev.sourcedrop.app.data.repository.TrackedAppRepository
 import dev.sourcedrop.app.data.repository.UpdateEventRepository
 import dev.sourcedrop.app.downloader.ApkDownloader
 import dev.sourcedrop.app.installer.ApkInstaller
+import dev.sourcedrop.app.installer.ApkVerifier
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,7 +20,8 @@ class DownloadsViewModel(
     private val trackedAppRepository: TrackedAppRepository,
     private val updateEventRepository: UpdateEventRepository,
     private val apkDownloader: ApkDownloader,
-    private val apkInstaller: ApkInstaller
+    private val apkInstaller: ApkInstaller,
+    private val apkVerifier: ApkVerifier
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DownloadsUiState())
@@ -45,13 +47,25 @@ class DownloadsViewModel(
 
     fun installApk(event: UpdateEvent) {
         if (event.localApkPath.isBlank()) return
-        val success = apkInstaller.launchInstall(event.localApkPath)
-        if (!success) return
+
         viewModelScope.launch {
+            // Verify APK signature matches the installed version
+            val trackedApp = trackedAppRepository.getAppByIdOnce(event.trackedAppId)
+            if (trackedApp != null && trackedApp.packageName.isNotBlank()) {
+                when (apkVerifier.verify(event.localApkPath, trackedApp.packageName)) {
+                    is ApkVerifier.Result.SignatureMismatch,
+                    is ApkVerifier.Result.Error -> return@launch
+                    is ApkVerifier.Result.Success,
+                    is ApkVerifier.Result.NotInstalled -> { /* proceed */ }
+                }
+            }
+
+            val success = apkInstaller.launchInstall(event.localApkPath)
+            if (!success) return@launch
+
             updateEventRepository.updateEvent(
                 event.copy(installStatus = UpdateEvent.INSTALL_STARTED)
             )
-            // Update currentVersion to reflect what was just installed
             val app = trackedAppRepository.getAppByIdOnce(event.trackedAppId) ?: return@launch
             trackedAppRepository.updateApp(
                 app.copy(
@@ -100,14 +114,15 @@ class DownloadsViewModel(
             trackedAppRepository: TrackedAppRepository,
             updateEventRepository: UpdateEventRepository,
             apkDownloader: ApkDownloader,
-            apkInstaller: ApkInstaller
+            apkInstaller: ApkInstaller,
+            apkVerifier: ApkVerifier
         ): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     return DownloadsViewModel(
                         trackedAppRepository, updateEventRepository,
-                        apkDownloader, apkInstaller
+                        apkDownloader, apkInstaller, apkVerifier
                     ) as T
                 }
             }

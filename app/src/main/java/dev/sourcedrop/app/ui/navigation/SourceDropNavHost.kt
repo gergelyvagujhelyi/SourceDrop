@@ -73,6 +73,7 @@ fun SourceDropNavHost(container: AppContainer) {
                     container.sourceAdapterFactory,
                     container.apkDownloader,
                     container.apkInstaller,
+                    container.apkVerifier,
                     container.installedVersionDetector
                 )
             )
@@ -110,7 +111,8 @@ fun SourceDropNavHost(container: AppContainer) {
                     container.trackedAppRepository,
                     container.updateEventRepository,
                     container.apkDownloader,
-                    container.apkInstaller
+                    container.apkInstaller,
+                    container.apkVerifier
                 )
             )
             DownloadsScreen(
