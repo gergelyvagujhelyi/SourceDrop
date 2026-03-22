@@ -23,6 +23,10 @@ class AppPreferences(context: Context) {
         get() = prefs.getBoolean(KEY_BACKGROUND_CHECKS, true)
         set(value) = prefs.edit().putBoolean(KEY_BACKGROUND_CHECKS, value).apply()
 
+    var onboardingCompleted: Boolean
+        get() = prefs.getBoolean(KEY_ONBOARDING_COMPLETED, false)
+        set(value) = prefs.edit().putBoolean(KEY_ONBOARDING_COMPLETED, value).apply()
+
     fun observeChanges(): Flow<String> = callbackFlow {
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             if (key != null) trySend(key)
@@ -36,6 +40,7 @@ class AppPreferences(context: Context) {
         private const val KEY_NOTIFICATIONS_ENABLED = "notifications_enabled"
         private const val KEY_CHECK_INTERVAL = "check_interval_hours"
         private const val KEY_BACKGROUND_CHECKS = "background_checks_enabled"
+        private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
         const val DEFAULT_CHECK_INTERVAL_HOURS = 12
     }
 }

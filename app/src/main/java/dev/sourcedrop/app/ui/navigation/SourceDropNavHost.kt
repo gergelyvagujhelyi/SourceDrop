@@ -22,21 +22,34 @@ import dev.sourcedrop.app.ui.detail.AppDetailViewModel
 import dev.sourcedrop.app.ui.downloads.DownloadsScreen
 import dev.sourcedrop.app.ui.downloads.DownloadsViewModel
 import dev.sourcedrop.app.ui.installedapps.InstalledAppsScreen
+import dev.sourcedrop.app.ui.onboarding.OnboardingScreen
 import dev.sourcedrop.app.ui.settings.SettingsScreen
 import dev.sourcedrop.app.ui.settings.SettingsViewModel
 
 @Composable
 fun SourceDropNavHost(container: AppContainer) {
     val navController = rememberNavController()
+    val startDestination: Any = if (container.preferences.onboardingCompleted) AppListRoute else OnboardingRoute
 
     NavHost(
         navController = navController,
-        startDestination = AppListRoute,
+        startDestination = startDestination,
         enterTransition = { fadeIn(animationSpec = tween(350)) },
         exitTransition = { fadeOut(animationSpec = tween(350)) },
         popEnterTransition = { fadeIn(animationSpec = tween(350)) },
         popExitTransition = { fadeOut(animationSpec = tween(350)) }
     ) {
+        composable<OnboardingRoute> {
+            OnboardingScreen(
+                onComplete = {
+                    container.preferences.onboardingCompleted = true
+                    navController.navigate(AppListRoute) {
+                        popUpTo(OnboardingRoute) { inclusive = true }
+                    }
+                }
+            )
+        }
+
         composable<AppListRoute> {
             val context = LocalContext.current
             val selfPackageName = context.packageName
