@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SourceDrop</string>
+
+    <!-- Common -->
+    <string name="back">Vissza</string>
+    <string name="cancel">M\u00e9gse</string>
+    <string name="delete">T\u00f6rl\u00e9s</string>
+    <string name="install">Telep\u00edt\u00e9s</string>
+    <string name="search">Keres\u00e9s</string>
+    <string name="settings">Be\u00e1ll\u00edt\u00e1sok</string>
+    <string name="save">Ment\u00e9s</string>
+    <string name="next">Tov\u00e1bb</string>
+    <string name="edit">Szerkeszt\u00e9s</string>
+
+    <!-- Source types (short labels) -->
+    <string name="source_type_github">GitHub</string>
+    <string name="source_type_gitlab">GitLab</string>
+    <string name="source_type_json">JSON</string>
+    <string name="source_type_direct_apk">K\u00f6zvetlen APK</string>
+    <string name="source_type_html">HTML</string>
+
+    <!-- Source types (full display names) -->
+    <string name="source_type_github_release">GitHub kiad\u00e1s</string>
+    <string name="source_type_gitlab_release">GitLab kiad\u00e1s</string>
+    <string name="source_type_json_endpoint">JSON v\u00e9gpont</string>
+    <string name="source_type_direct_apk_url">K\u00f6zvetlen APK URL</string>
+    <string name="source_type_html_page">HTML oldal</string>
+
+    <!-- Status -->
+    <string name="update_available">Friss\u00edt\u00e9s el\u00e9rhet\u0151</string>
+    <string name="up_to_date">Naprak\u00e9sz</string>
+    <string name="check_failed">Ellen\u0151rz\u00e9s sikertelen</string>
+
+    <!-- App List Screen -->
+    <string name="add_app">Alkalmaz\u00e1s hozz\u00e1ad\u00e1sa</string>
+    <string name="downloads">Let\u00f6lt\u00e9sek</string>
+    <string name="clear_search">Keres\u00e9s t\u00f6rl\u00e9se</string>
+    <string name="empty_no_apps_title">M\u00e9g nincs k\u00f6vetett alkalmaz\u00e1s</string>
+    <string name="empty_no_apps_subtitle">Adj hozz\u00e1 egy alkalmaz\u00e1st a friss\u00edt\u00e9sek figyel\u00e9s\u00e9hez</string>
+    <string name="empty_no_apps_action">Els\u0151 alkalmaz\u00e1s hozz\u00e1ad\u00e1sa</string>
+
+    <!-- App Card -->
+    <string name="delete_app_title">T\u00f6r\u00f6lj\u00fck: %1$s?</string>
+    <string name="delete_app_installed">Ez elt\u00e1vol\u00edtja a(z) %1$s alkalmaz\u00e1st az eszk\u00f6zr\u0151l, t\u00f6rli a let\u00f6lt\u00f6tt APK-kat \u00e9s a teljes friss\u00edt\u00e9si el\u0151zm\u00e9nyt.</string>
+    <string name="delete_app_not_installed">A(z) %1$s nincs telep\u00edtve ezen az eszk\u00f6z\u00f6n. Ez t\u00f6rli a let\u00f6lt\u00f6tt APK-kat \u00e9s a teljes friss\u00edt\u00e9si el\u0151zm\u00e9nyt.</string>
+    <string name="delete_app_no_package">Ez csak a k\u00f6vet\u00e9si rekordot \u00e9s a let\u00f6lt\u00f6tt APK-kat t\u00f6rli. Az alkalmaz\u00e1s elt\u00e1vol\u00edt\u00e1s\u00e1hoz el\u0151bb szerkeszd, \u00e9s add meg a csomagnevet.</string>
+    <string name="uninstall_and_delete">Elt\u00e1vol\u00edt\u00e1s \u00e9s t\u00f6rl\u00e9s</string>
+
+    <!-- App Form - Add Wizard -->
+    <string name="add_app_step">Alkalmaz\u00e1s hozz\u00e1ad\u00e1sa \u2014 %1$d. l\u00e9p\u00e9s / 2</string>
+    <string name="paste_repo_url">Illeszd be a t\u00e1rol\u00f3 URL-j\u00e9t</string>
+    <string name="repo_url_subtitle">GitHub, GitLab vagy k\u00f6zvetlen link</string>
+    <string name="label_url">URL</string>
+    <string name="label_app_name">Alkalmaz\u00e1s neve</string>
+    <string name="label_package_name">Csomag neve</string>
+    <string name="label_version">Verzi\u00f3</string>
+    <string name="no_versions_found">Nem tal\u00e1lhat\u00f3 verzi\u00f3</string>
+    <string name="pre_release_suffix">\u0020(el\u0151zetes)</string>
+    <string name="version_already_installed">%1$s \u2014 m\u00e1r telep\u00edtve</string>
+    <string name="add_and_install">Hozz\u00e1ad\u00e1s \u00e9s telep\u00edt\u00e9s</string>
+    <string name="add_app_button">Alkalmaz\u00e1s hozz\u00e1ad\u00e1sa</string>
+    <string name="downloading_progress">Let\u00f6lt\u00e9s\u2026 %1$d%%</string>
+
+    <!-- App Form - Edit -->
+    <string name="edit_app">Alkalmaz\u00e1s szerkeszt\u00e9se</string>
+    <string name="label_app_name_required">Alkalmaz\u00e1s neve *</string>
+    <string name="label_source_type">Forr\u00e1s t\u00edpusa</string>
+    <string name="label_source_url_required">Forr\u00e1s URL *</string>
+    <string name="label_apk_url_optional">APK URL (opcion\u00e1lis)</string>
+    <string name="placeholder_apk_url">K\u00f6zvetlen link az APK-hoz, ha ismert</string>
+    <string name="label_current_version">Jelenlegi verzi\u00f3</string>
+    <string name="label_apk_asset_pattern">APK f\u00e1jln\u00e9v minta</string>
+    <string name="hint_apk_asset_pattern">Regex a kiad\u00e1si eszk\u00f6z\u00f6k k\u00f6z\u00f6tti APK f\u00e1jln\u00e9v egyeztet\u00e9s\u00e9hez</string>
+    <string name="label_version_pattern">Verzi\u00f3 minta</string>
+    <string name="hint_version_pattern">Regex a verzi\u00f3sz\u00e1m kinyer\u00e9s\u00e9hez a kiad\u00e1si c\u00edmk\u00e9b\u0151l vagy oldalr\u00f3l</string>
+    <string name="include_pre_releases">El\u0151zetes kiad\u00e1sok bevon\u00e1sa</string>
+    <string name="include_pre_releases_subtitle">Alpha, beta \u00e9s RC kiad\u00e1sok figyelembev\u00e9tele is</string>
+
+    <!-- Settings Screen -->
+    <string name="section_background_checks">H\u00e1tt\u00e9rbeli ellen\u0151rz\u00e9sek</string>
+    <string name="enable_background_checks">H\u00e1tt\u00e9rbeli ellen\u0151rz\u00e9sek enged\u00e9lyez\u00e9se</string>
+    <string name="enable_background_checks_subtitle">Friss\u00edt\u00e9sek rendszeres ellen\u0151rz\u00e9se a h\u00e1tt\u00e9rben</string>
+    <string name="section_notifications">\u00c9rtes\u00edt\u00e9sek</string>
+    <string name="notification_permission_required">\u00c9rtes\u00edt\u00e9si enged\u00e9ly sz\u00fcks\u00e9ges</string>
+    <string name="notification_permission_description">Koppints az enged\u00e9ly megad\u00e1s\u00e1hoz, hogy a SourceDrop \u00e9rtes\u00edthessen a friss\u00edt\u00e9sekr\u0151l</string>
+    <string name="update_notifications">Friss\u00edt\u00e9si \u00e9rtes\u00edt\u00e9sek</string>
+    <string name="update_notifications_subtitle">\u00c9rtes\u00edt\u00e9s megjelen\u00edt\u00e9se \u00faj verzi\u00f3 \u00e9szlel\u00e9sekor</string>
+    <string name="section_device">Eszk\u00f6z</string>
+    <string name="installed_apps">Telep\u00edtett alkalmaz\u00e1sok</string>
+    <string name="installed_apps_subtitle">Az eszk\u00f6zre telep\u00edtett alkalmaz\u00e1sok b\u00f6ng\u00e9sz\u00e9se</string>
+    <string name="section_about">N\u00e9vjegy</string>
+    <string name="about_description">A SourceDrop harmadik f\u00e9lt\u0151l sz\u00e1rmaz\u00f3 alkalmaz\u00e1sforr\u00e1sokat figyel \u00fajabb verzi\u00f3k ut\u00e1n, \u00e9s seg\u00edt az APK friss\u00edt\u00e9sek let\u00f6lt\u00e9s\u00e9ben \u00e9s telep\u00edt\u00e9s\u00e9ben.</string>
+    <string name="about_permission_note">Ez az alkalmaz\u00e1s az \"Ismeretlen forr\u00e1s\u00fa alkalmaz\u00e1sok telep\u00edt\u00e9se\" enged\u00e9lyt ig\u00e9nyli a let\u00f6lt\u00f6tt APK-k telep\u00edt\u00e9s\u00e9hez. Sz\u00fcks\u00e9g eset\u00e9n felk\u00e9r\u00e9st kapsz.</string>
+    <string name="check_interval">Ellen\u0151rz\u00e9si id\u0151k\u00f6z: %1$s</string>
+    <string name="interval_hours">%1$d \u00f3</string>
+    <string name="interval_days">%1$d n</string>
+    <string name="interval_days_hours">%1$d n %2$d \u00f3</string>
+    <string name="interval_min">1 \u00f3</string>
+    <string name="interval_max">72 \u00f3</string>
+
+    <!-- App Detail Screen -->
+    <string name="app_details">Alkalmaz\u00e1s r\u00e9szletei</string>
+    <string name="app_not_found">Az alkalmaz\u00e1s nem tal\u00e1lhat\u00f3</string>
+    <string name="label_package">Csomag</string>
+    <string name="label_source">Forr\u00e1s</string>
+    <string name="label_source_url">Forr\u00e1s URL</string>
+    <string name="label_apk_url">APK URL</string>
+    <string name="label_current">Jelenlegi</string>
+    <string name="label_latest">Leg\u00fajabb</string>
+    <string name="last_checked">Utolj\u00e1ra ellen\u0151rizve: %1$s</string>
+    <string name="checking">Ellen\u0151rz\u00e9s\u2026</string>
+    <string name="check_now">Ellen\u0151rz\u00e9s most</string>
+    <string name="update_history">Friss\u00edt\u00e9si el\u0151zm\u00e9nyek</string>
+    <string name="downloading">Let\u00f6lt\u00e9s\u2026</string>
+    <string name="downloading_percent">Let\u00f6lt\u00e9s\u2026 %1$d%%</string>
+    <string name="re_install">\u00dajratelep\u00edt\u00e9s</string>
+    <string name="reinstall">\u00dajratelep\u00edt\u00e9s</string>
+    <string name="retry_download">Let\u00f6lt\u00e9s \u00fajra</string>
+    <string name="download_apk">APK let\u00f6lt\u00e9se</string>
+    <string name="delete_apk">APK t\u00f6rl\u00e9se</string>
+    <string name="no_apk_link">Nincs el\u00e9rhet\u0151 APK link</string>
+    <string name="permission_required">Enged\u00e9ly sz\u00fcks\u00e9ges</string>
+    <string name="install_permission_explanation">A SourceDrop enged\u00e9lyt ig\u00e9nyel ismeretlen forr\u00e1s\u00fa alkalmaz\u00e1sok telep\u00edt\u00e9s\u00e9hez. Ez sz\u00fcks\u00e9ges a let\u00f6lt\u00f6tt APK f\u00e1jlok telep\u00edt\u00e9s\u00e9hez.\n\nA rendszerbe\u00e1ll\u00edt\u00e1sokhoz ir\u00e1ny\u00edtunk, ahol enged\u00e9lyezheted a \"Telep\u00edt\u00e9s ebb\u0151l a forr\u00e1sb\u00f3l\" opci\u00f3t a SourceDrop sz\u00e1m\u00e1ra.</string>
+    <string name="open_settings">Be\u00e1ll\u00edt\u00e1sok megnyit\u00e1sa</string>
+
+    <!-- Downloads Screen -->
+    <string name="clean_up_all_apks">\u00d6sszes APK t\u00f6rl\u00e9se</string>
+    <string name="empty_no_downloads_title">Nincs friss\u00edt\u00e9si el\u0151zm\u00e9ny</string>
+    <string name="empty_no_downloads_subtitle">A felfedezett friss\u00edt\u00e9sek itt jelennek meg</string>
+    <string name="status_installed">Telep\u00edtve</string>
+    <string name="status_install_started">Telep\u00edt\u00e9s elind\u00edtva</string>
+    <string name="status_downloaded">Let\u00f6ltve</string>
+    <string name="status_downloading">Let\u00f6lt\u00e9s folyamatban</string>
+    <string name="status_download_failed">Let\u00f6lt\u00e9s sikertelen</string>
+    <string name="status_not_downloaded">Nincs let\u00f6ltve</string>
+
+    <!-- Installed Apps Screen -->
+    <string name="installed_apps_title">Telep\u00edtett alkalmaz\u00e1sok (%1$d)</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_updates">Friss\u00edt\u00e9s-ellen\u0151rz\u00e9s</string>
+    <string name="notification_channel_description">\u00c9rtes\u00edt\u00e9sek \u00faj alkalmaz\u00e1sverzi\u00f3k \u00e9szlel\u00e9sekor</string>
+    <string name="notification_update_title">%1$s %2$s el\u00e9rhet\u0151</string>
+    <string name="notification_update_body">\u00daj verzi\u00f3 \u00e1ll let\u00f6lt\u00e9sre k\u00e9szen</string>
+</resources>
