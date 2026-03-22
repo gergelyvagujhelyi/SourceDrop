@@ -41,10 +41,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.sourcedrop.app.R
 import dev.sourcedrop.app.data.local.entity.TrackedApp
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,14 +80,14 @@ private fun AddWizardScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Add App — Step ${uiState.step} of 2") },
+                title = { Text(stringResource(R.string.add_app_step, uiState.step)) },
                 navigationIcon = {
                     IconButton(onClick = {
                         if (uiState.step > 1) viewModel.previousStep() else onNavigateBack()
                     }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.back)
                         )
                     }
                 }
@@ -131,14 +133,14 @@ private fun StepUrl(
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Paste the repository URL",
+            text = stringResource(R.string.paste_repo_url),
             style = MaterialTheme.typography.headlineSmall
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "GitHub, GitLab, or a direct link",
+            text = stringResource(R.string.repo_url_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -148,7 +150,7 @@ private fun StepUrl(
         OutlinedTextField(
             value = uiState.sourceUrl,
             onValueChange = onUrlChange,
-            label = { Text("URL") },
+            label = { Text(stringResource(R.string.label_url)) },
             placeholder = { Text("https://github.com/owner/repo") },
             isError = uiState.errors.containsKey("sourceUrl"),
             supportingText = uiState.errors["sourceUrl"]?.let { { Text(it) } }
@@ -173,7 +175,7 @@ private fun StepUrl(
                     color = MaterialTheme.colorScheme.onPrimary
                 )
             } else {
-                Text("Next")
+                Text(stringResource(R.string.next))
             }
         }
     }
@@ -190,6 +192,8 @@ private fun StepDetails(
     onSaveAndInstall: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val preReleaseSuffix = stringResource(R.string.pre_release_suffix)
+
     Column(
         modifier = modifier.verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -199,7 +203,7 @@ private fun StepDetails(
         OutlinedTextField(
             value = uiState.displayName,
             onValueChange = onNameChange,
-            label = { Text("App Name") },
+            label = { Text(stringResource(R.string.label_app_name)) },
             isError = uiState.errors.containsKey("displayName"),
             supportingText = uiState.errors["displayName"]?.let { { Text(it) } },
             singleLine = true,
@@ -209,7 +213,7 @@ private fun StepDetails(
         OutlinedTextField(
             value = uiState.packageName,
             onValueChange = onPackageChange,
-            label = { Text("Package Name") },
+            label = { Text(stringResource(R.string.label_package_name)) },
             placeholder = { Text("com.example.app") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth()
@@ -217,10 +221,10 @@ private fun StepDetails(
 
         if (uiState.isAppInstalled) {
             OutlinedTextField(
-                value = "${uiState.currentVersion} — already installed",
+                value = stringResource(R.string.version_already_installed, uiState.currentVersion),
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Version") },
+                label = { Text(stringResource(R.string.label_version)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -234,10 +238,10 @@ private fun StepDetails(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 OutlinedTextField(
-                    value = selected?.let { "${it.version}${if (it.isPreRelease) " (pre-release)" else ""}" } ?: "",
+                    value = selected?.let { it.version + if (it.isPreRelease) preReleaseSuffix else "" } ?: "",
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Version") },
+                    label = { Text(stringResource(R.string.label_version)) },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -252,7 +256,7 @@ private fun StepDetails(
                         DropdownMenuItem(
                             text = {
                                 Text(
-                                    "${ver.version}${if (ver.isPreRelease) " (pre-release)" else ""}",
+                                    ver.version + if (ver.isPreRelease) preReleaseSuffix else "",
                                     color = if (ver.isPreRelease) MaterialTheme.colorScheme.onSurfaceVariant
                                     else MaterialTheme.colorScheme.onSurface
                                 )
@@ -269,8 +273,8 @@ private fun StepDetails(
             OutlinedTextField(
                 value = uiState.currentVersion,
                 onValueChange = {},
-                label = { Text("Version") },
-                placeholder = { Text("No versions found") },
+                label = { Text(stringResource(R.string.label_version)) },
+                placeholder = { Text(stringResource(R.string.no_versions_found)) },
                 readOnly = true,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
@@ -295,11 +299,11 @@ private fun StepDetails(
                     color = MaterialTheme.colorScheme.onPrimary
                 )
                 Text(
-                    text = "  Downloading… ${uiState.downloadProgress}%",
+                    text = stringResource(R.string.downloading_progress, uiState.downloadProgress),
                     modifier = Modifier.padding(start = 8.dp)
                 )
             } else {
-                Text(if (showInstall) "Add & Install" else "Add App")
+                Text(if (showInstall) stringResource(R.string.add_and_install) else stringResource(R.string.add_app_button))
             }
         }
 
@@ -317,12 +321,12 @@ private fun EditFormScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Edit App") },
+                title = { Text(stringResource(R.string.edit_app)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.back)
                         )
                     }
                 },
@@ -330,7 +334,7 @@ private fun EditFormScreen(
                     IconButton(onClick = { viewModel.save() }) {
                         Icon(
                             imageVector = Icons.Default.Check,
-                            contentDescription = "Save"
+                            contentDescription = stringResource(R.string.save)
                         )
                     }
                 }
@@ -358,7 +362,7 @@ private fun EditFormScreen(
                 OutlinedTextField(
                     value = uiState.displayName,
                     onValueChange = viewModel::updateDisplayName,
-                    label = { Text("App Name *") },
+                    label = { Text(stringResource(R.string.label_app_name_required)) },
                     isError = uiState.errors.containsKey("displayName"),
                     supportingText = uiState.errors["displayName"]?.let { { Text(it) } },
                     singleLine = true,
@@ -368,7 +372,7 @@ private fun EditFormScreen(
                 OutlinedTextField(
                     value = uiState.packageName,
                     onValueChange = viewModel::updatePackageName,
-                    label = { Text("Package Name") },
+                    label = { Text(stringResource(R.string.label_package_name)) },
                     placeholder = { Text("com.example.app") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -383,7 +387,7 @@ private fun EditFormScreen(
                 OutlinedTextField(
                     value = uiState.sourceUrl,
                     onValueChange = viewModel::updateSourceUrl,
-                    label = { Text("Source URL *") },
+                    label = { Text(stringResource(R.string.label_source_url_required)) },
                     placeholder = { Text(sourceUrlPlaceholder(uiState.sourceType)) },
                     isError = uiState.errors.containsKey("sourceUrl"),
                     supportingText = uiState.errors["sourceUrl"]?.let { { Text(it) } },
@@ -395,8 +399,8 @@ private fun EditFormScreen(
                 OutlinedTextField(
                     value = uiState.apkUrl,
                     onValueChange = viewModel::updateApkUrl,
-                    label = { Text("APK URL (optional)") },
-                    placeholder = { Text("Direct link to APK, if known") },
+                    label = { Text(stringResource(R.string.label_apk_url_optional)) },
+                    placeholder = { Text(stringResource(R.string.placeholder_apk_url)) },
                     isError = uiState.errors.containsKey("apkUrl"),
                     supportingText = uiState.errors["apkUrl"]?.let { { Text(it) } },
                     singleLine = true,
@@ -407,7 +411,7 @@ private fun EditFormScreen(
                 OutlinedTextField(
                     value = uiState.currentVersion,
                     onValueChange = viewModel::updateCurrentVersion,
-                    label = { Text("Current Version") },
+                    label = { Text(stringResource(R.string.label_current_version)) },
                     placeholder = { Text("1.0.0") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -416,9 +420,9 @@ private fun EditFormScreen(
                 OutlinedTextField(
                     value = uiState.assetMatchPattern,
                     onValueChange = viewModel::updateAssetMatchPattern,
-                    label = { Text("APK Asset Pattern") },
+                    label = { Text(stringResource(R.string.label_apk_asset_pattern)) },
                     placeholder = { Text(".*universal.*\\.apk") },
-                    supportingText = { Text("Regex to match APK filename in release assets") },
+                    supportingText = { Text(stringResource(R.string.hint_apk_asset_pattern)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -426,9 +430,9 @@ private fun EditFormScreen(
                 OutlinedTextField(
                     value = uiState.versionPattern,
                     onValueChange = viewModel::updateVersionPattern,
-                    label = { Text("Version Pattern") },
+                    label = { Text(stringResource(R.string.label_version_pattern)) },
                     placeholder = { Text("v([\\d.]+)") },
-                    supportingText = { Text("Regex to extract version from release tag or page") },
+                    supportingText = { Text(stringResource(R.string.hint_version_pattern)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -445,11 +449,11 @@ private fun EditFormScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Include pre-releases",
+                                text = stringResource(R.string.include_pre_releases),
                                 style = MaterialTheme.typography.bodyLarge
                             )
                             Text(
-                                text = "Also consider alpha, beta, and RC releases",
+                                text = stringResource(R.string.include_pre_releases_subtitle),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -483,7 +487,7 @@ private fun SourceTypeDropdown(
             value = sourceTypeDisplayName(selectedType),
             onValueChange = {},
             readOnly = true,
-            label = { Text("Source Type") },
+            label = { Text(stringResource(R.string.label_source_type)) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
@@ -507,12 +511,13 @@ private fun SourceTypeDropdown(
     }
 }
 
+@Composable
 private fun sourceTypeDisplayName(type: String): String = when (type) {
-    TrackedApp.SOURCE_TYPE_GITHUB -> "GitHub Release"
-    TrackedApp.SOURCE_TYPE_GITLAB -> "GitLab Release"
-    TrackedApp.SOURCE_TYPE_JSON -> "JSON Endpoint"
-    TrackedApp.SOURCE_TYPE_DIRECT_APK -> "Direct APK URL"
-    TrackedApp.SOURCE_TYPE_HTML -> "HTML Page"
+    TrackedApp.SOURCE_TYPE_GITHUB -> stringResource(R.string.source_type_github_release)
+    TrackedApp.SOURCE_TYPE_GITLAB -> stringResource(R.string.source_type_gitlab_release)
+    TrackedApp.SOURCE_TYPE_JSON -> stringResource(R.string.source_type_json_endpoint)
+    TrackedApp.SOURCE_TYPE_DIRECT_APK -> stringResource(R.string.source_type_direct_apk_url)
+    TrackedApp.SOURCE_TYPE_HTML -> stringResource(R.string.source_type_html_page)
     else -> type
 }
 

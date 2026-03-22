@@ -35,10 +35,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.sourcedrop.app.R
 import dev.sourcedrop.app.data.local.entity.UpdateEvent
 import dev.sourcedrop.app.ui.components.EmptyState
 import java.text.DateFormat
@@ -55,10 +57,10 @@ fun DownloadsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Downloads") },
+                title = { Text(stringResource(R.string.downloads)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
@@ -66,7 +68,7 @@ fun DownloadsScreen(
                         IconButton(onClick = { viewModel.cleanupAll() }) {
                             Icon(
                                 Icons.Default.CleaningServices,
-                                contentDescription = "Clean up all APKs"
+                                contentDescription = stringResource(R.string.clean_up_all_apks)
                             )
                         }
                     }
@@ -87,8 +89,8 @@ fun DownloadsScreen(
             }
             uiState.isEmpty -> {
                 EmptyState(
-                    title = "No update history",
-                    subtitle = "Updates you discover will appear here",
+                    title = stringResource(R.string.empty_no_downloads_title),
+                    subtitle = stringResource(R.string.empty_no_downloads_subtitle),
                     modifier = Modifier.padding(innerPadding)
                 )
             }
@@ -170,12 +172,12 @@ private fun DownloadItemCard(
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Install")
+                        Text(stringResource(R.string.install))
                     }
                     OutlinedButton(onClick = onDelete) {
                         Icon(
                             Icons.Default.Delete,
-                            contentDescription = "Delete",
+                            contentDescription = stringResource(R.string.delete),
                             modifier = Modifier.size(16.dp)
                         )
                     }
@@ -189,27 +191,27 @@ private fun DownloadItemCard(
 private fun StatusChip(event: UpdateEvent) {
     val (icon, label, color) = when {
         event.installStatus == UpdateEvent.INSTALL_COMPLETE -> Triple(
-            Icons.Default.InstallMobile, "Installed",
+            Icons.Default.InstallMobile, stringResource(R.string.status_installed),
             MaterialTheme.colorScheme.tertiary
         )
         event.installStatus == UpdateEvent.INSTALL_STARTED -> Triple(
-            Icons.Default.InstallMobile, "Install started",
+            Icons.Default.InstallMobile, stringResource(R.string.status_install_started),
             MaterialTheme.colorScheme.secondary
         )
         event.downloadStatus == UpdateEvent.DOWNLOAD_COMPLETE -> Triple(
-            Icons.Default.Download, "Downloaded",
+            Icons.Default.Download, stringResource(R.string.status_downloaded),
             MaterialTheme.colorScheme.primary
         )
         event.downloadStatus == UpdateEvent.DOWNLOAD_IN_PROGRESS -> Triple(
-            Icons.Default.Download, "Downloading",
+            Icons.Default.Download, stringResource(R.string.status_downloading),
             MaterialTheme.colorScheme.secondary
         )
         event.downloadStatus == UpdateEvent.DOWNLOAD_FAILED -> Triple(
-            Icons.Default.Download, "Download failed",
+            Icons.Default.Download, stringResource(R.string.status_download_failed),
             MaterialTheme.colorScheme.error
         )
         else -> Triple(
-            Icons.Default.Download, "Not downloaded",
+            Icons.Default.Download, stringResource(R.string.status_not_downloaded),
             MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
