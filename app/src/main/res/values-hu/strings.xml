@@ -143,4 +143,15 @@
     <string name="notification_channel_description">\u00c9rtes\u00edt\u00e9sek \u00faj alkalmaz\u00e1sverzi\u00f3k \u00e9szlel\u00e9sekor</string>
     <string name="notification_update_title">%1$s %2$s el\u00e9rhet\u0151</string>
     <string name="notification_update_body">\u00daj verzi\u00f3 \u00e1ll let\u00f6lt\u00e9sre k\u00e9szen</string>
+
+    <!-- Onboarding Screen -->
+    <string name="onboarding_welcome">\u00dcdv\u00f6z\u00f6l a SourceDrop!</string>
+    <string name="onboarding_subtitle">Miel\u0151tt elkezden\u00e9nk, \u00e1ll\u00edtsunk be n\u00e9h\u00e1ny dolgot</string>
+    <string name="onboarding_notifications_title">\u00c9rtes\u00edt\u00e9sek</string>
+    <string name="onboarding_notifications_description">\u00c9rtes\u00edt\u00e9st kapsz, ha el\u00e9rhet\u0151 alkalmaz\u00e1sfriss\u00edt\u00e9s</string>
+    <string name="onboarding_install_title">Alkalmaz\u00e1sok telep\u00edt\u00e9se</string>
+    <string name="onboarding_install_description">Sz\u00fcks\u00e9ges a let\u00f6lt\u00f6tt APK friss\u00edt\u00e9sek telep\u00edt\u00e9s\u00e9hez</string>
+    <string name="onboarding_permission_granted">Enged\u00e9lyezve</string>
+    <string name="onboarding_grant">Enged\u00e9lyez\u00e9s</string>
+    <string name="onboarding_get_started">Kezd\u00e9s</string>
 </resources>

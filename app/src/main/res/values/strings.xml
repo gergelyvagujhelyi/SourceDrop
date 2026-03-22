@@ -143,4 +143,15 @@
     <string name="notification_channel_description">Notifications when new app versions are detected</string>
     <string name="notification_update_title">%1$s %2$s available</string>
     <string name="notification_update_body">A new version is ready to download</string>
+
+    <!-- Onboarding Screen -->
+    <string name="onboarding_welcome">Welcome to SourceDrop</string>
+    <string name="onboarding_subtitle">Before we start, let\u2019s set up a few things</string>
+    <string name="onboarding_notifications_title">Notifications</string>
+    <string name="onboarding_notifications_description">Get notified when app updates are available</string>
+    <string name="onboarding_install_title">Install apps</string>
+    <string name="onboarding_install_description">Required to install downloaded APK updates</string>
+    <string name="onboarding_permission_granted">Granted</string>
+    <string name="onboarding_grant">Grant</string>
+    <string name="onboarding_get_started">Get Started</string>
 </resources>

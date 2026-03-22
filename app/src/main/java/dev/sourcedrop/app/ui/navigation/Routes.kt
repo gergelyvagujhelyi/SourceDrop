@@ -3,6 +3,9 @@ package dev.sourcedrop.app.ui.navigation
 import kotlinx.serialization.Serializable
 
 @Serializable
+object OnboardingRoute
+
+@Serializable
 object AppListRoute
 
 @Serializable
