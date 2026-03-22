@@ -52,10 +52,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.sourcedrop.app.R
 import dev.sourcedrop.app.data.local.entity.TrackedApp
 import dev.sourcedrop.app.data.local.entity.UpdateEvent
 import java.text.DateFormat
@@ -101,20 +103,20 @@ fun AppDetailScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = uiState.app?.displayName ?: "App Details",
+                        text = uiState.app?.displayName ?: stringResource(R.string.app_details),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     uiState.app?.let { app ->
                         IconButton(onClick = { onEdit(app.id) }) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit")
+                            Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit))
                         }
                     }
                 }
@@ -138,7 +140,7 @@ fun AppDetailScreen(
                     .padding(innerPadding),
                 contentAlignment = Alignment.Center
             ) {
-                Text("App not found")
+                Text(stringResource(R.string.app_not_found))
             }
         } else {
             val app = uiState.app!!
@@ -155,7 +157,7 @@ fun AppDetailScreen(
                 if (uiState.events.isNotEmpty()) {
                     item {
                         Text(
-                            text = "Update History",
+                            text = stringResource(R.string.update_history),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -189,12 +191,12 @@ private fun AppInfoCard(app: TrackedApp) {
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (app.packageName.isNotBlank()) {
-                InfoRow("Package", app.packageName)
+                InfoRow(stringResource(R.string.label_package), app.packageName)
             }
-            InfoRow("Source", sourceTypeLabel(app.sourceType))
-            InfoRow("Source URL", app.sourceUrl)
+            InfoRow(stringResource(R.string.label_source), sourceTypeLabel(app.sourceType))
+            InfoRow(stringResource(R.string.label_source_url), app.sourceUrl)
             if (app.apkUrl.isNotBlank()) {
-                InfoRow("APK URL", app.apkUrl)
+                InfoRow(stringResource(R.string.label_apk_url), app.apkUrl)
             }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
@@ -203,9 +205,9 @@ private fun AppInfoCard(app: TrackedApp) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                VersionBlock("Current", app.currentVersion.ifBlank { "\u2014" })
+                VersionBlock(stringResource(R.string.label_current), app.currentVersion.ifBlank { "\u2014" })
                 VersionBlock(
-                    "Latest",
+                    stringResource(R.string.label_latest),
                     app.latestKnownVersion.ifBlank { "\u2014" },
                     isHighlighted = app.lastStatus == TrackedApp.STATUS_UPDATE_AVAILABLE
                 )
@@ -215,7 +217,7 @@ private fun AppInfoCard(app: TrackedApp) {
 
             if (app.lastCheckedAt > 0) {
                 Text(
-                    text = "Last checked: ${formatTimestamp(app.lastCheckedAt)}",
+                    text = stringResource(R.string.last_checked, formatTimestamp(app.lastCheckedAt)),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -267,13 +269,13 @@ private fun VersionBlock(
 private fun StatusRow(app: TrackedApp) {
     val (icon, text, color) = when (app.lastStatus) {
         TrackedApp.STATUS_UPDATE_AVAILABLE -> Triple(
-            Icons.Default.NewReleases, "Update available", MaterialTheme.colorScheme.primary
+            Icons.Default.NewReleases, stringResource(R.string.update_available), MaterialTheme.colorScheme.primary
         )
         TrackedApp.STATUS_UP_TO_DATE -> Triple(
-            Icons.Default.CheckCircle, "Up to date", MaterialTheme.colorScheme.tertiary
+            Icons.Default.CheckCircle, stringResource(R.string.up_to_date), MaterialTheme.colorScheme.tertiary
         )
         TrackedApp.STATUS_ERROR -> Triple(
-            Icons.Default.Error, "Check failed", MaterialTheme.colorScheme.error
+            Icons.Default.Error, stringResource(R.string.check_failed), MaterialTheme.colorScheme.error
         )
         else -> return
     }
@@ -309,11 +311,11 @@ private fun CheckNowSection(isChecking: Boolean, onCheck: () -> Unit) {
                 color = MaterialTheme.colorScheme.onPrimary
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Checking...")
+            Text(stringResource(R.string.checking))
         } else {
             Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Check Now")
+            Text(stringResource(R.string.check_now))
         }
     }
 }
@@ -374,7 +376,7 @@ private fun UpdateEventCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "Downloading... $downloadProgress%",
+                        text = stringResource(R.string.downloading_percent, downloadProgress),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -409,7 +411,7 @@ private fun EventActionButtons(
             // Currently downloading
             isDownloading -> {
                 Text(
-                    text = "Downloading...",
+                    text = stringResource(R.string.downloading),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.align(Alignment.CenterVertically)
@@ -430,16 +432,16 @@ private fun EventActionButtons(
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         when (event.installStatus) {
-                            UpdateEvent.INSTALL_STARTED -> "Re-install"
-                            UpdateEvent.INSTALL_COMPLETE -> "Reinstall"
-                            else -> "Install"
+                            UpdateEvent.INSTALL_STARTED -> stringResource(R.string.re_install)
+                            UpdateEvent.INSTALL_COMPLETE -> stringResource(R.string.reinstall)
+                            else -> stringResource(R.string.install)
                         }
                     )
                 }
                 OutlinedButton(onClick = onDelete) {
                     Icon(
                         Icons.Default.Delete,
-                        contentDescription = "Delete APK",
+                        contentDescription = stringResource(R.string.delete_apk),
                         modifier = Modifier.size(16.dp)
                     )
                 }
@@ -458,9 +460,9 @@ private fun EventActionButtons(
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         if (event.downloadStatus == UpdateEvent.DOWNLOAD_FAILED) {
-                            "Retry Download"
+                            stringResource(R.string.retry_download)
                         } else {
-                            "Download APK"
+                            stringResource(R.string.download_apk)
                         }
                     )
                 }
@@ -468,7 +470,7 @@ private fun EventActionButtons(
             // No APK URL
             else -> {
                 Text(
-                    text = "No APK link available",
+                    text = stringResource(R.string.no_apk_link),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.align(Alignment.CenterVertically)
@@ -485,23 +487,18 @@ private fun InstallPermissionDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Permission Required") },
+        title = { Text(stringResource(R.string.permission_required)) },
         text = {
-            Text(
-                "SourceDrop needs permission to install apps from unknown sources. " +
-                    "This is required to install downloaded APK files.\n\n" +
-                    "You will be taken to the system settings where you can enable " +
-                    "\"Allow from this source\" for SourceDrop."
-            )
+            Text(stringResource(R.string.install_permission_explanation))
         },
         confirmButton = {
             TextButton(onClick = onGrantPermission) {
-                Text("Open Settings")
+                Text(stringResource(R.string.open_settings))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         }
     )
@@ -512,11 +509,12 @@ private fun formatTimestamp(millis: Long): String {
         .format(Date(millis))
 }
 
+@Composable
 private fun sourceTypeLabel(type: String): String = when (type) {
-    TrackedApp.SOURCE_TYPE_GITHUB -> "GitHub Release"
-    TrackedApp.SOURCE_TYPE_GITLAB -> "GitLab Release"
-    TrackedApp.SOURCE_TYPE_JSON -> "JSON Endpoint"
-    TrackedApp.SOURCE_TYPE_DIRECT_APK -> "Direct APK URL"
-    TrackedApp.SOURCE_TYPE_HTML -> "HTML Page"
+    TrackedApp.SOURCE_TYPE_GITHUB -> stringResource(R.string.source_type_github_release)
+    TrackedApp.SOURCE_TYPE_GITLAB -> stringResource(R.string.source_type_gitlab_release)
+    TrackedApp.SOURCE_TYPE_JSON -> stringResource(R.string.source_type_json_endpoint)
+    TrackedApp.SOURCE_TYPE_DIRECT_APK -> stringResource(R.string.source_type_direct_apk_url)
+    TrackedApp.SOURCE_TYPE_HTML -> stringResource(R.string.source_type_html_page)
     else -> type
 }

@@ -34,9 +34,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.sourcedrop.app.R
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -57,10 +59,10 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings)) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 }
             )
@@ -74,11 +76,11 @@ fun SettingsScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            SectionHeader("Background Checks")
+            SectionHeader(stringResource(R.string.section_background_checks))
 
             SettingSwitch(
-                title = "Enable background checks",
-                subtitle = "Periodically check for updates in the background",
+                title = stringResource(R.string.enable_background_checks),
+                subtitle = stringResource(R.string.enable_background_checks_subtitle),
                 checked = uiState.backgroundChecksEnabled,
                 onCheckedChange = viewModel::setBackgroundChecksEnabled
             )
@@ -92,7 +94,7 @@ fun SettingsScreen(
 
             HorizontalDivider()
 
-            SectionHeader("Notifications")
+            SectionHeader(stringResource(R.string.section_notifications))
 
             if (!uiState.hasNotificationPermission && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 Card(
@@ -107,13 +109,13 @@ fun SettingsScreen(
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(
-                            text = "Notification permission required",
+                            text = stringResource(R.string.notification_permission_required),
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
                         Text(
-                            text = "Tap to grant permission so SourceDrop can notify you about updates",
+                            text = stringResource(R.string.notification_permission_description),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onErrorContainer
                         )
@@ -122,15 +124,15 @@ fun SettingsScreen(
             }
 
             SettingSwitch(
-                title = "Update notifications",
-                subtitle = "Show a notification when a new version is detected",
+                title = stringResource(R.string.update_notifications),
+                subtitle = stringResource(R.string.update_notifications_subtitle),
                 checked = uiState.notificationsEnabled,
                 onCheckedChange = viewModel::setNotificationsEnabled
             )
 
             HorizontalDivider()
 
-            SectionHeader("Device")
+            SectionHeader(stringResource(R.string.section_device))
 
             Card(
                 modifier = Modifier
@@ -149,11 +151,11 @@ fun SettingsScreen(
                 ) {
                     Column {
                         Text(
-                            text = "Installed apps",
+                            text = stringResource(R.string.installed_apps),
                             style = MaterialTheme.typography.bodyLarge
                         )
                         Text(
-                            text = "Browse apps installed on this device",
+                            text = stringResource(R.string.installed_apps_subtitle),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -169,18 +171,16 @@ fun SettingsScreen(
 
             HorizontalDivider()
 
-            SectionHeader("About")
+            SectionHeader(stringResource(R.string.section_about))
 
             Text(
-                text = "SourceDrop monitors third-party app sources for newer " +
-                    "versions and helps you download and install APK updates.",
+                text = stringResource(R.string.about_description),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
             Text(
-                text = "This app requires the \"Install unknown apps\" permission " +
-                    "to install downloaded APKs. You will be prompted when needed.",
+                text = stringResource(R.string.about_permission_note),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -236,8 +236,9 @@ private fun IntervalSlider(
     onHoursChanged: (Int) -> Unit
 ) {
     Column {
+        val intervalText = formatInterval(currentHours)
         Text(
-            text = "Check interval: ${formatInterval(currentHours)}",
+            text = stringResource(R.string.check_interval, intervalText),
             style = MaterialTheme.typography.bodyMedium
         )
         Slider(
@@ -250,16 +251,17 @@ private fun IntervalSlider(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("1h", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text("72h", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.interval_min), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.interval_max), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
 
+@Composable
 private fun formatInterval(hours: Int): String {
     return when {
-        hours < 24 -> "${hours}h"
-        hours % 24 == 0 -> "${hours / 24}d"
-        else -> "${hours / 24}d ${hours % 24}h"
+        hours < 24 -> stringResource(R.string.interval_hours, hours)
+        hours % 24 == 0 -> stringResource(R.string.interval_days, hours / 24)
+        else -> stringResource(R.string.interval_days_hours, hours / 24, hours % 24)
     }
 }

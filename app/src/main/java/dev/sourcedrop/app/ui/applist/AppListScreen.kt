@@ -48,8 +48,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.sourcedrop.app.R
 import dev.sourcedrop.app.ui.components.EmptyState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,7 +79,7 @@ fun AppListScreen(
             FloatingActionButton(onClick = onAddApp) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Add app"
+                    contentDescription = stringResource(R.string.add_app)
                 )
             }
         },
@@ -108,7 +110,7 @@ fun AppListScreen(
                         IconButton(onClick = onDownloads) {
                             Icon(
                                 imageVector = Icons.Default.Download,
-                                contentDescription = "Downloads",
+                                contentDescription = stringResource(R.string.downloads),
                                 tint = MaterialTheme.colorScheme.primary
                             )
                         }
@@ -121,7 +123,7 @@ fun AppListScreen(
                         ) {
                             if (searchQuery.isEmpty()) {
                                 Text(
-                                    text = "Search",
+                                    text = stringResource(R.string.search),
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -142,7 +144,7 @@ fun AppListScreen(
                             IconButton(onClick = { viewModel.updateSearchQuery("") }) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
-                                    contentDescription = "Clear search",
+                                    contentDescription = stringResource(R.string.clear_search),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
@@ -151,7 +153,7 @@ fun AppListScreen(
                         IconButton(onClick = onSettings) {
                             Icon(
                                 imageVector = Icons.Default.Settings,
-                                contentDescription = "Settings",
+                                contentDescription = stringResource(R.string.settings),
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -181,9 +183,9 @@ fun AppListScreen(
                     exit = fadeOut()
                 ) {
                     EmptyState(
-                        title = "No apps tracked yet",
-                        subtitle = "Add an app to start monitoring for updates",
-                        actionLabel = "Add your first app",
+                        title = stringResource(R.string.empty_no_apps_title),
+                        subtitle = stringResource(R.string.empty_no_apps_subtitle),
+                        actionLabel = stringResource(R.string.empty_no_apps_action),
                         onAction = onAddApp
                     )
                 }

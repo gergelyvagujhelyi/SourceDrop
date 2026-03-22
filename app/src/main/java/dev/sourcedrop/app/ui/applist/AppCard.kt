@@ -36,9 +36,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import dev.sourcedrop.app.R
 import dev.sourcedrop.app.data.local.entity.TrackedApp
 import dev.sourcedrop.app.util.VersionComparator
 
@@ -59,16 +61,16 @@ fun AppCard(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Delete ${app.displayName}?") },
+            title = { Text(stringResource(R.string.delete_app_title, app.displayName)) },
             text = {
                 Text(
                     when {
                         app.packageName.isNotBlank() && isInstalled ->
-                            "This will uninstall ${app.packageName} from your device, remove downloaded APKs, and delete all update history."
+                            stringResource(R.string.delete_app_installed, app.packageName)
                         app.packageName.isNotBlank() && !isInstalled ->
-                            "${app.packageName} is not installed on this device. This will remove downloaded APKs and delete all update history."
+                            stringResource(R.string.delete_app_not_installed, app.packageName)
                         else ->
-                            "This will only remove the tracking record and downloaded APKs. To also uninstall the app from your device, edit it first and set the package name."
+                            stringResource(R.string.delete_app_no_package)
                     }
                 )
             },
@@ -78,14 +80,14 @@ fun AppCard(
                     onDelete()
                 }) {
                     Text(
-                        if (isInstalled) "Uninstall & Delete" else "Delete",
+                        if (isInstalled) stringResource(R.string.uninstall_and_delete) else stringResource(R.string.delete),
                         color = MaterialTheme.colorScheme.error
                     )
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -186,7 +188,7 @@ fun AppCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = app.currentVersion.ifBlank { "—" } + " → " + app.latestKnownVersion.ifBlank { "—" },
+                        text = app.currentVersion.ifBlank { "\u2014" } + " \u2192 " + app.latestKnownVersion.ifBlank { "\u2014" },
                         style = MaterialTheme.typography.labelSmall,
                         color = if (hasUpdate) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurfaceVariant
@@ -209,14 +211,14 @@ fun AppCard(
                 if (hasUpdate) {
                     Icon(
                         imageVector = Icons.Default.NewReleases,
-                        contentDescription = "Update available",
+                        contentDescription = stringResource(R.string.update_available),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(24.dp)
                     )
                 } else if (app.latestKnownVersion.isNotBlank()) {
                     Icon(
                         imageVector = Icons.Default.CheckCircle,
-                        contentDescription = "Up to date",
+                        contentDescription = stringResource(R.string.up_to_date),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(24.dp)
                     )
@@ -224,7 +226,7 @@ fun AppCard(
 
                 Icon(
                     imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete",
+                    contentDescription = stringResource(R.string.delete),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
                         .size(24.dp)
@@ -235,11 +237,12 @@ fun AppCard(
     }
 }
 
+@Composable
 private fun sourceTypeLabel(type: String): String = when (type) {
-    TrackedApp.SOURCE_TYPE_GITHUB -> "GitHub"
-    TrackedApp.SOURCE_TYPE_GITLAB -> "GitLab"
-    TrackedApp.SOURCE_TYPE_JSON -> "JSON"
-    TrackedApp.SOURCE_TYPE_DIRECT_APK -> "Direct APK"
-    TrackedApp.SOURCE_TYPE_HTML -> "HTML"
+    TrackedApp.SOURCE_TYPE_GITHUB -> stringResource(R.string.source_type_github)
+    TrackedApp.SOURCE_TYPE_GITLAB -> stringResource(R.string.source_type_gitlab)
+    TrackedApp.SOURCE_TYPE_JSON -> stringResource(R.string.source_type_json)
+    TrackedApp.SOURCE_TYPE_DIRECT_APK -> stringResource(R.string.source_type_direct_apk)
+    TrackedApp.SOURCE_TYPE_HTML -> stringResource(R.string.source_type_html)
     else -> type
 }

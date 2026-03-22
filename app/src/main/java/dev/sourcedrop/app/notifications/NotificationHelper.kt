@@ -19,10 +19,10 @@ class NotificationHelper(private val context: Context) {
     fun createChannels() {
         val channel = NotificationChannel(
             CHANNEL_UPDATES,
-            "Update Checks",
+            context.getString(R.string.notification_channel_updates),
             NotificationManager.IMPORTANCE_DEFAULT
         ).apply {
-            description = "Notifications when new app versions are detected"
+            description = context.getString(R.string.notification_channel_description)
         }
 
         val manager = context.getSystemService(NotificationManager::class.java)
@@ -49,11 +49,11 @@ class NotificationHelper(private val context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val title = "$appName $newVersion available"
+        val title = context.getString(R.string.notification_update_title, appName, newVersion)
         val body = if (releaseNotes.isNotBlank()) {
             releaseNotes.take(200)
         } else {
-            "A new version is ready to download"
+            context.getString(R.string.notification_update_body)
         }
 
         val notification = NotificationCompat.Builder(context, CHANNEL_UPDATES)

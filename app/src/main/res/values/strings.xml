@@ -1,4 +1,146 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">SourceDrop</string>
+
+    <!-- Common -->
+    <string name="back">Back</string>
+    <string name="cancel">Cancel</string>
+    <string name="delete">Delete</string>
+    <string name="install">Install</string>
+    <string name="search">Search</string>
+    <string name="settings">Settings</string>
+    <string name="save">Save</string>
+    <string name="next">Next</string>
+    <string name="edit">Edit</string>
+
+    <!-- Source types (short labels) -->
+    <string name="source_type_github">GitHub</string>
+    <string name="source_type_gitlab">GitLab</string>
+    <string name="source_type_json">JSON</string>
+    <string name="source_type_direct_apk">Direct APK</string>
+    <string name="source_type_html">HTML</string>
+
+    <!-- Source types (full display names) -->
+    <string name="source_type_github_release">GitHub Release</string>
+    <string name="source_type_gitlab_release">GitLab Release</string>
+    <string name="source_type_json_endpoint">JSON Endpoint</string>
+    <string name="source_type_direct_apk_url">Direct APK URL</string>
+    <string name="source_type_html_page">HTML Page</string>
+
+    <!-- Status -->
+    <string name="update_available">Update available</string>
+    <string name="up_to_date">Up to date</string>
+    <string name="check_failed">Check failed</string>
+
+    <!-- App List Screen -->
+    <string name="add_app">Add app</string>
+    <string name="downloads">Downloads</string>
+    <string name="clear_search">Clear search</string>
+    <string name="empty_no_apps_title">No apps tracked yet</string>
+    <string name="empty_no_apps_subtitle">Add an app to start monitoring for updates</string>
+    <string name="empty_no_apps_action">Add your first app</string>
+
+    <!-- App Card -->
+    <string name="delete_app_title">Delete %1$s?</string>
+    <string name="delete_app_installed">This will uninstall %1$s from your device, remove downloaded APKs, and delete all update history.</string>
+    <string name="delete_app_not_installed">%1$s is not installed on this device. This will remove downloaded APKs and delete all update history.</string>
+    <string name="delete_app_no_package">This will only remove the tracking record and downloaded APKs. To also uninstall the app from your device, edit it first and set the package name.</string>
+    <string name="uninstall_and_delete">Uninstall &amp; Delete</string>
+
+    <!-- App Form - Add Wizard -->
+    <string name="add_app_step">Add App \u2014 Step %1$d of 2</string>
+    <string name="paste_repo_url">Paste the repository URL</string>
+    <string name="repo_url_subtitle">GitHub, GitLab, or a direct link</string>
+    <string name="label_url">URL</string>
+    <string name="label_app_name">App Name</string>
+    <string name="label_package_name">Package Name</string>
+    <string name="label_version">Version</string>
+    <string name="no_versions_found">No versions found</string>
+    <string name="pre_release_suffix">\u0020(pre-release)</string>
+    <string name="version_already_installed">%1$s \u2014 already installed</string>
+    <string name="add_and_install">Add &amp; Install</string>
+    <string name="add_app_button">Add App</string>
+    <string name="downloading_progress">Downloading\u2026 %1$d%%</string>
+
+    <!-- App Form - Edit -->
+    <string name="edit_app">Edit App</string>
+    <string name="label_app_name_required">App Name *</string>
+    <string name="label_source_type">Source Type</string>
+    <string name="label_source_url_required">Source URL *</string>
+    <string name="label_apk_url_optional">APK URL (optional)</string>
+    <string name="placeholder_apk_url">Direct link to APK, if known</string>
+    <string name="label_current_version">Current Version</string>
+    <string name="label_apk_asset_pattern">APK Asset Pattern</string>
+    <string name="hint_apk_asset_pattern">Regex to match APK filename in release assets</string>
+    <string name="label_version_pattern">Version Pattern</string>
+    <string name="hint_version_pattern">Regex to extract version from release tag or page</string>
+    <string name="include_pre_releases">Include pre-releases</string>
+    <string name="include_pre_releases_subtitle">Also consider alpha, beta, and RC releases</string>
+
+    <!-- Settings Screen -->
+    <string name="section_background_checks">Background Checks</string>
+    <string name="enable_background_checks">Enable background checks</string>
+    <string name="enable_background_checks_subtitle">Periodically check for updates in the background</string>
+    <string name="section_notifications">Notifications</string>
+    <string name="notification_permission_required">Notification permission required</string>
+    <string name="notification_permission_description">Tap to grant permission so SourceDrop can notify you about updates</string>
+    <string name="update_notifications">Update notifications</string>
+    <string name="update_notifications_subtitle">Show a notification when a new version is detected</string>
+    <string name="section_device">Device</string>
+    <string name="installed_apps">Installed apps</string>
+    <string name="installed_apps_subtitle">Browse apps installed on this device</string>
+    <string name="section_about">About</string>
+    <string name="about_description">SourceDrop monitors third-party app sources for newer versions and helps you download and install APK updates.</string>
+    <string name="about_permission_note">This app requires the \"Install unknown apps\" permission to install downloaded APKs. You will be prompted when needed.</string>
+    <string name="check_interval">Check interval: %1$s</string>
+    <string name="interval_hours">%1$dh</string>
+    <string name="interval_days">%1$dd</string>
+    <string name="interval_days_hours">%1$dd %2$dh</string>
+    <string name="interval_min">1h</string>
+    <string name="interval_max">72h</string>
+
+    <!-- App Detail Screen -->
+    <string name="app_details">App Details</string>
+    <string name="app_not_found">App not found</string>
+    <string name="label_package">Package</string>
+    <string name="label_source">Source</string>
+    <string name="label_source_url">Source URL</string>
+    <string name="label_apk_url">APK URL</string>
+    <string name="label_current">Current</string>
+    <string name="label_latest">Latest</string>
+    <string name="last_checked">Last checked: %1$s</string>
+    <string name="checking">Checking\u2026</string>
+    <string name="check_now">Check Now</string>
+    <string name="update_history">Update History</string>
+    <string name="downloading">Downloading\u2026</string>
+    <string name="downloading_percent">Downloading\u2026 %1$d%%</string>
+    <string name="re_install">Re-install</string>
+    <string name="reinstall">Reinstall</string>
+    <string name="retry_download">Retry Download</string>
+    <string name="download_apk">Download APK</string>
+    <string name="delete_apk">Delete APK</string>
+    <string name="no_apk_link">No APK link available</string>
+    <string name="permission_required">Permission Required</string>
+    <string name="install_permission_explanation">SourceDrop needs permission to install apps from unknown sources. This is required to install downloaded APK files.\n\nYou will be taken to the system settings where you can enable \"Allow from this source\" for SourceDrop.</string>
+    <string name="open_settings">Open Settings</string>
+
+    <!-- Downloads Screen -->
+    <string name="clean_up_all_apks">Clean up all APKs</string>
+    <string name="empty_no_downloads_title">No update history</string>
+    <string name="empty_no_downloads_subtitle">Updates you discover will appear here</string>
+    <string name="status_installed">Installed</string>
+    <string name="status_install_started">Install started</string>
+    <string name="status_downloaded">Downloaded</string>
+    <string name="status_downloading">Downloading</string>
+    <string name="status_download_failed">Download failed</string>
+    <string name="status_not_downloaded">Not downloaded</string>
+
+    <!-- Installed Apps Screen -->
+    <string name="installed_apps_title">Installed Apps (%1$d)</string>
+
+    <!-- Notifications -->
+    <string name="notification_channel_updates">Update Checks</string>
+    <string name="notification_channel_description">Notifications when new app versions are detected</string>
+    <string name="notification_update_title">%1$s %2$s available</string>
+    <string name="notification_update_body">A new version is ready to download</string>
 </resources>
