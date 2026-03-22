@@ -66,9 +66,14 @@ fun OnboardingScreen(
         mutableStateOf(context.packageManager.canRequestPackageInstalls())
     }
 
-    // Refresh install permission when returning from Settings
+    // Refresh permission states when returning from Settings
     LifecycleResumeEffect(Unit) {
         hasInstallPermission = context.packageManager.canRequestPackageInstalls()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            hasNotificationPermission = ContextCompat.checkSelfPermission(
+                context, Manifest.permission.POST_NOTIFICATIONS
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
         onPauseOrDispose {}
     }
 
@@ -136,8 +141,11 @@ fun OnboardingScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
+            val allGranted = hasNotificationPermission && hasInstallPermission
+
             Button(
                 onClick = onComplete,
+                enabled = allGranted,
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(stringResource(R.string.onboarding_get_started))
