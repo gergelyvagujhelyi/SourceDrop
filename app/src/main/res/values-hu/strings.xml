@@ -114,6 +114,7 @@
     <string name="checking">Ellen\u0151rz\u00e9s\u2026</string>
     <string name="check_now">Ellen\u0151rz\u00e9s most</string>
     <string name="update_history">Friss\u00edt\u00e9si el\u0151zm\u00e9nyek</string>
+    <string name="install_latest_version">Telep\u00edt\u00e9s: %1$s</string>
     <string name="all_versions">\u00d6sszes verzi\u00f3</string>
     <string name="nightly_suffix">\u0020(nightly)</string>
     <string name="loading_versions">Verzi\u00f3k bet\u00f6lt\u00e9se\u2026</string>

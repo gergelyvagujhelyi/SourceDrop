@@ -162,6 +162,29 @@ fun AppDetailScreen(
                 item { AppInfoCard(app) }
                 item { CheckNowSection(uiState.isChecking) { viewModel.checkNow() } }
 
+                if (uiState.hasUpdate && uiState.events.firstOrNull()?.apkUrl?.isNotBlank() == true) {
+                    item {
+                        FilledTonalButton(
+                            onClick = { viewModel.installLatestUpdate() },
+                            enabled = uiState.downloadingEventId == null,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(
+                                Icons.Default.InstallMobile,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                stringResource(
+                                    R.string.install_latest_version,
+                                    uiState.app?.latestKnownVersion ?: ""
+                                )
+                            )
+                        }
+                    }
+                }
+
                 item {
                     var expanded by remember { mutableStateOf(false) }
                     Column {

@@ -94,6 +94,18 @@ class AppDetailViewModel(
         }
     }
 
+    fun installLatestUpdate() {
+        val event = _uiState.value.events.firstOrNull() ?: return
+        if (event.apkUrl.isBlank()) return
+
+        if (event.downloadStatus == UpdateEvent.DOWNLOAD_COMPLETE && event.localApkPath.isNotBlank()) {
+            installApk(event)
+        } else {
+            installAfterDownload = true
+            downloadApk(event)
+        }
+    }
+
     fun downloadRelease(release: ReleaseVersion) {
         if (release.apkUrl.isBlank()) return
         val app = _uiState.value.app ?: return
