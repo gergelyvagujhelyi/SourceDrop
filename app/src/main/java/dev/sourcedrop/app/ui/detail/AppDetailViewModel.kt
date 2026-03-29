@@ -17,6 +17,7 @@ import dev.sourcedrop.app.sourceadapters.AdapterError
 import dev.sourcedrop.app.sourceadapters.AppMetadataFetcher
 import dev.sourcedrop.app.sourceadapters.GitHubAdapter
 import dev.sourcedrop.app.sourceadapters.GitLabAdapter
+import dev.sourcedrop.app.sourceadapters.ReleaseVersion
 import dev.sourcedrop.app.sourceadapters.SourceAdapterFactory
 import dev.sourcedrop.app.util.VersionComparator
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -89,6 +90,27 @@ class AppDetailViewModel(
                     it.copy(isLoadingReleases = false, releasesError = e.message)
                 }
             }
+        }
+    }
+
+    fun downloadRelease(release: ReleaseVersion) {
+        if (release.apkUrl.isBlank()) return
+        val app = _uiState.value.app ?: return
+        if (_uiState.value.downloadingEventId != null) return
+
+        viewModelScope.launch {
+            // Reuse existing UpdateEvent if this version was already detected, otherwise create one
+            val event = updateEventRepository.getEventByVersion(app.id, release.version)
+                ?: UpdateEvent(
+                    trackedAppId = app.id,
+                    detectedVersion = release.version,
+                    releaseNotes = release.releaseNotes,
+                    apkUrl = release.apkUrl
+                ).let {
+                    val id = updateEventRepository.insertEvent(it)
+                    it.copy(id = id)
+                }
+            downloadApk(event)
         }
     }
 

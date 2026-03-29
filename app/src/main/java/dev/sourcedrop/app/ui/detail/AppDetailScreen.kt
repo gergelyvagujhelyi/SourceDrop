@@ -221,7 +221,10 @@ fun AppDetailScreen(
                                 }
                                 else -> {
                                     uiState.allReleases.forEach { release ->
-                                        ReleaseVersionCard(release = release)
+                                        ReleaseVersionCard(
+                                            release = release,
+                                            onInstall = { viewModel.downloadRelease(release) }
+                                        )
                                         Spacer(modifier = Modifier.height(8.dp))
                                     }
                                 }
@@ -564,11 +567,17 @@ private val NIGHTLY_PATTERN = Regex(
 )
 
 @Composable
-private fun ReleaseVersionCard(release: ReleaseVersion) {
+private fun ReleaseVersionCard(
+    release: ReleaseVersion,
+    onInstall: () -> Unit
+) {
+    var expanded by remember { mutableStateOf(false) }
     val isNightly = NIGHTLY_PATTERN.containsMatchIn(release.tagName)
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { expanded = !expanded },
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
@@ -602,13 +611,36 @@ private fun ReleaseVersionCard(release: ReleaseVersion) {
             }
 
             if (release.releaseNotes.isNotBlank()) {
-                Text(
-                    text = release.releaseNotes,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (expanded) {
+                    Text(
+                        text = release.releaseNotes,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Text(
+                        text = release.releaseNotes,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            if (expanded && release.apkUrl.isNotBlank()) {
+                FilledTonalButton(
+                    onClick = onInstall,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        Icons.Default.Download,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(stringResource(R.string.install))
+                }
             }
         }
     }
