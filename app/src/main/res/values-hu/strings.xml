@@ -91,6 +91,11 @@
     <string name="section_device">Eszk\u00f6z</string>
     <string name="installed_apps">Telep\u00edtett alkalmaz\u00e1sok</string>
     <string name="installed_apps_subtitle">Az eszk\u00f6zre telep\u00edtett alkalmaz\u00e1sok b\u00f6ng\u00e9sz\u00e9se</string>
+    <string name="section_api_keys">API kulcsok</string>
+    <string name="api_keys_description">API tokenek hozz\u00e1ad\u00e1sa a sebess\u00e9gkorl\u00e1toz\u00e1s n\u00f6vel\u00e9s\u00e9hez \u00e9s priv\u00e1t t\u00e1rol\u00f3k el\u00e9r\u00e9s\u00e9hez</string>
+    <string name="github_api_token">GitHub szem\u00e9lyes hozz\u00e1f\u00e9r\u00e9si token</string>
+    <string name="rate_limit_go_to_settings">Sebess\u00e9gkorl\u00e1t el\u00e9rve. Adjon hozz\u00e1 API tokent a Be\u00e1ll\u00edt\u00e1sokban.</string>
+    <string name="go_to_settings">Be\u00e1ll\u00edt\u00e1sok</string>
     <string name="section_about">N\u00e9vjegy</string>
     <string name="about_description">A SourceDrop harmadik f\u00e9lt\u0151l sz\u00e1rmaz\u00f3 alkalmaz\u00e1sforr\u00e1sokat figyel \u00fajabb verzi\u00f3k ut\u00e1n, \u00e9s seg\u00edt az APK friss\u00edt\u00e9sek let\u00f6lt\u00e9s\u00e9ben \u00e9s telep\u00edt\u00e9s\u00e9ben.</string>
     <string name="about_permission_note">Ez az alkalmaz\u00e1s az \"Ismeretlen forr\u00e1s\u00fa alkalmaz\u00e1sok telep\u00edt\u00e9se\" enged\u00e9lyt ig\u00e9nyli a let\u00f6lt\u00f6tt APK-k telep\u00edt\u00e9s\u00e9hez. Sz\u00fcks\u00e9g eset\u00e9n felk\u00e9r\u00e9st kapsz.</string>

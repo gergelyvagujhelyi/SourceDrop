@@ -76,15 +76,26 @@ import java.util.Date
 fun AppDetailScreen(
     viewModel: AppDetailViewModel,
     onNavigateBack: () -> Unit,
-    onEdit: (Long) -> Unit
+    onEdit: (Long) -> Unit,
+    onSettings: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
     LaunchedEffect(uiState.checkError) {
-        uiState.checkError?.let {
-            snackbarHostState.showSnackbar(it)
+        uiState.checkError?.let { error ->
+            if (error.contains("rate limit", ignoreCase = true)) {
+                val result = snackbarHostState.showSnackbar(
+                    message = context.getString(R.string.rate_limit_go_to_settings),
+                    actionLabel = context.getString(R.string.go_to_settings)
+                )
+                if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {
+                    onSettings()
+                }
+            } else {
+                snackbarHostState.showSnackbar(error)
+            }
             viewModel.dismissMessage()
         }
     }
@@ -229,11 +240,22 @@ fun AppDetailScreen(
                                     }
                                 }
                                 uiState.releasesError != null -> {
-                                    Text(
-                                        text = stringResource(R.string.failed_to_load_versions),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.error
-                                    )
+                                    val isRateLimit = uiState.releasesError
+                                        ?.contains("rate limit", ignoreCase = true) == true
+                                    if (isRateLimit) {
+                                        Text(
+                                            text = stringResource(R.string.rate_limit_go_to_settings),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.clickable { onSettings() }
+                                        )
+                                    } else {
+                                        Text(
+                                            text = stringResource(R.string.failed_to_load_versions),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.error
+                                        )
+                                    }
                                 }
                                 uiState.allReleases.isEmpty() -> {
                                     Text(

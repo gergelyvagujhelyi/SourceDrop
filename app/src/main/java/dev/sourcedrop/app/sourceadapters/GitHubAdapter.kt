@@ -15,7 +15,10 @@ import dev.sourcedrop.app.util.boundedBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
-class GitHubAdapter(private val client: OkHttpClient) : SourceAdapter {
+class GitHubAdapter(
+    private val client: OkHttpClient,
+    private val apiToken: String = ""
+) : SourceAdapter {
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -24,10 +27,13 @@ class GitHubAdapter(private val client: OkHttpClient) : SourceAdapter {
             val (owner, repo) = parseOwnerRepo(app.sourceUrl)
             val apiUrl = "https://api.github.com/repos/$owner/$repo/releases"
 
-            val request = Request.Builder()
+            val requestBuilder = Request.Builder()
                 .url(apiUrl)
                 .header("Accept", "application/vnd.github+json")
-                .build()
+            if (apiToken.isNotBlank()) {
+                requestBuilder.header("Authorization", "Bearer $apiToken")
+            }
+            val request = requestBuilder.build()
 
             val response = try {
                 client.newCall(request).execute()
