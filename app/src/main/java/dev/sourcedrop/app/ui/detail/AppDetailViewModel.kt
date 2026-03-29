@@ -39,6 +39,7 @@ class AppDetailViewModel(
     private val appMetadataFetcher: AppMetadataFetcher
 ) : ViewModel() {
 
+    private var installAfterDownload = false
     private val _uiState = MutableStateFlow(AppDetailUiState())
     val uiState: StateFlow<AppDetailUiState> = _uiState.asStateFlow()
 
@@ -98,6 +99,7 @@ class AppDetailViewModel(
         val app = _uiState.value.app ?: return
         if (_uiState.value.downloadingEventId != null) return
 
+        installAfterDownload = true
         viewModelScope.launch {
             // Reuse existing UpdateEvent if this version was already detected, otherwise create one
             val event = updateEventRepository.getEventByVersion(app.id, release.version)
@@ -222,19 +224,22 @@ class AppDetailViewModel(
                 when (progress.status) {
                     DownloadStatus.COMPLETE -> {
                         val filePath = apkDownloader.getDownloadedFilePath(downloadId) ?: ""
-                        updateEventRepository.updateEvent(
-                            event.copy(
-                                downloadStatus = UpdateEvent.DOWNLOAD_COMPLETE,
-                                downloadId = downloadId,
-                                localApkPath = filePath
-                            )
+                        val updatedEvent = event.copy(
+                            downloadStatus = UpdateEvent.DOWNLOAD_COMPLETE,
+                            downloadId = downloadId,
+                            localApkPath = filePath
                         )
+                        updateEventRepository.updateEvent(updatedEvent)
                         _uiState.update {
                             it.copy(
                                 downloadingEventId = null,
                                 downloadProgress = 100,
                                 checkSuccess = "Download complete"
                             )
+                        }
+                        if (installAfterDownload) {
+                            installAfterDownload = false
+                            installApk(updatedEvent)
                         }
                     }
                     DownloadStatus.FAILED, DownloadStatus.CANCELLED -> {
