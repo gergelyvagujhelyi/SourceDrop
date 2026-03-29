@@ -87,13 +87,16 @@ fun SourceDropNavHost(container: AppContainer) {
                     container.apkDownloader,
                     container.apkInstaller,
                     container.apkVerifier,
-                    container.installedVersionDetector
+                    container.installedVersionDetector,
+                    container.appMetadataFetcher,
+                    container.notificationHelper
                 )
             )
             AppDetailScreen(
                 viewModel = viewModel,
                 onNavigateBack = { navController.popBackStack() },
-                onEdit = { appId -> navController.navigate(EditAppRoute(appId)) }
+                onEdit = { appId -> navController.navigate(EditAppRoute(appId)) },
+                onSettings = { navController.navigate(SettingsRoute) }
             )
         }
 

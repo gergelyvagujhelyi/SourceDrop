@@ -2,10 +2,14 @@ package dev.sourcedrop.app.ui.detail
 
 import dev.sourcedrop.app.data.local.entity.TrackedApp
 import dev.sourcedrop.app.data.local.entity.UpdateEvent
+import dev.sourcedrop.app.sourceadapters.ReleaseVersion
 
 data class AppDetailUiState(
     val app: TrackedApp? = null,
     val events: List<UpdateEvent> = emptyList(),
+    val allReleases: List<ReleaseVersion> = emptyList(),
+    val isLoadingReleases: Boolean = false,
+    val releasesError: String? = null,
     val isLoading: Boolean = true,
     val isChecking: Boolean = false,
     val checkError: String? = null,

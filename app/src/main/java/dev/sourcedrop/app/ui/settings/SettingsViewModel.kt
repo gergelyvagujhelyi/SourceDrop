@@ -24,7 +24,8 @@ class SettingsViewModel(
             notificationsEnabled = preferences.notificationsEnabled,
             backgroundChecksEnabled = preferences.backgroundChecksEnabled,
             checkIntervalHours = preferences.globalCheckIntervalHours,
-            hasNotificationPermission = notificationHelper.hasNotificationPermission()
+            hasNotificationPermission = notificationHelper.hasNotificationPermission(),
+            githubApiToken = preferences.githubApiToken
         )
     }
 
@@ -46,6 +47,11 @@ class SettingsViewModel(
             workScheduler.schedulePeriodicCheck(clamped)
         }
         _uiState.update { it.copy(checkIntervalHours = clamped) }
+    }
+
+    fun setGithubApiToken(token: String) {
+        preferences.githubApiToken = token
+        _uiState.update { it.copy(githubApiToken = token.trim()) }
     }
 
     fun refreshPermissionState() {

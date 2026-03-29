@@ -63,11 +63,11 @@ class AppContainer(context: Context) {
     }
 
     val sourceAdapterFactory: SourceAdapterFactory by lazy {
-        SourceAdapterFactory(httpClient)
+        SourceAdapterFactory(httpClient, preferences)
     }
 
     val appMetadataFetcher: AppMetadataFetcher by lazy {
-        AppMetadataFetcher(httpClient)
+        AppMetadataFetcher(httpClient) { preferences.githubApiToken }
     }
 
     val installedVersionDetector: InstalledVersionDetector by lazy {

@@ -27,6 +27,10 @@ class AppPreferences(context: Context) {
         get() = prefs.getBoolean(KEY_ONBOARDING_COMPLETED, false)
         set(value) = prefs.edit().putBoolean(KEY_ONBOARDING_COMPLETED, value).apply()
 
+    var githubApiToken: String
+        get() = prefs.getString(KEY_GITHUB_API_TOKEN, "") ?: ""
+        set(value) = prefs.edit().putString(KEY_GITHUB_API_TOKEN, value.trim()).apply()
+
     fun observeChanges(): Flow<String> = callbackFlow {
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             if (key != null) trySend(key)
@@ -41,6 +45,7 @@ class AppPreferences(context: Context) {
         private const val KEY_CHECK_INTERVAL = "check_interval_hours"
         private const val KEY_BACKGROUND_CHECKS = "background_checks_enabled"
         private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
+        private const val KEY_GITHUB_API_TOKEN = "github_api_token"
         const val DEFAULT_CHECK_INTERVAL_HOURS = 12
     }
 }

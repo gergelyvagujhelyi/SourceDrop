@@ -27,7 +27,10 @@ data class ReleaseVersion(
     val isPreRelease: Boolean = false
 )
 
-class AppMetadataFetcher(private val client: OkHttpClient) {
+class AppMetadataFetcher(
+    private val client: OkHttpClient,
+    private val apiTokenProvider: () -> String = { "" }
+) {
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -48,11 +51,22 @@ class AppMetadataFetcher(private val client: OkHttpClient) {
             AppMetadata(displayName = appName ?: repoName, packageName = packageName, versions = versions)
         }
 
+    private fun githubRequest(
+        url: String,
+        accept: String = "application/vnd.github+json"
+    ): Request {
+        val builder = Request.Builder()
+            .url(url)
+            .header("Accept", accept)
+        val token = apiTokenProvider()
+        if (token.isNotBlank()) {
+            builder.header("Authorization", "Bearer $token")
+        }
+        return builder.build()
+    }
+
     private fun fetchGitHubVersions(owner: String, repo: String): List<ReleaseVersion> {
-        val request = Request.Builder()
-            .url("https://api.github.com/repos/$owner/$repo/releases")
-            .header("Accept", "application/vnd.github+json")
-            .build()
+        val request = githubRequest("https://api.github.com/repos/$owner/$repo/releases")
         val response = try { client.newCall(request).execute() } catch (_: Exception) { return emptyList() }
         if (!response.isSuccessful) {
             val code = response.code
@@ -129,10 +143,10 @@ class AppMetadataFetcher(private val client: OkHttpClient) {
 
         for ((gradlePath, resPath) in modules) {
             try {
-                val request = Request.Builder()
-                    .url("https://api.github.com/repos/$owner/$repo/contents/$gradlePath")
-                    .header("Accept", "application/vnd.github.raw+json")
-                    .build()
+                val request = githubRequest(
+                    "https://api.github.com/repos/$owner/$repo/contents/$gradlePath",
+                    "application/vnd.github.raw+json"
+                )
                 val response = client.newCall(request).execute()
                 if (response.isSuccessful) {
                     val content = response.boundedBody()
@@ -159,10 +173,10 @@ class AppMetadataFetcher(private val client: OkHttpClient) {
         var appName: String? = null
         if (stringsPath != null) {
             try {
-                val request = Request.Builder()
-                    .url("https://api.github.com/repos/$owner/$repo/contents/$stringsPath")
-                    .header("Accept", "application/vnd.github.raw+json")
-                    .build()
+                val request = githubRequest(
+                    "https://api.github.com/repos/$owner/$repo/contents/$stringsPath",
+                    "application/vnd.github.raw+json"
+                )
                 val response = client.newCall(request).execute()
                 if (response.isSuccessful) {
                     val content = response.boundedBody()

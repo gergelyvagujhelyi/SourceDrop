@@ -91,6 +91,11 @@
     <string name="section_device">Device</string>
     <string name="installed_apps">Installed apps</string>
     <string name="installed_apps_subtitle">Browse apps installed on this device</string>
+    <string name="section_api_keys">API Keys</string>
+    <string name="api_keys_description">Add API tokens to increase rate limits and access private repositories</string>
+    <string name="github_api_token">GitHub personal access token</string>
+    <string name="rate_limit_go_to_settings">Rate limit hit. Add an API token in Settings.</string>
+    <string name="go_to_settings">Settings</string>
     <string name="section_about">About</string>
     <string name="about_description">SourceDrop monitors third-party app sources for newer versions and helps you download and install APK updates.</string>
     <string name="about_permission_note">This app requires the \"Install unknown apps\" permission to install downloaded APKs. You will be prompted when needed.</string>
@@ -114,6 +119,11 @@
     <string name="checking">Checking\u2026</string>
     <string name="check_now">Check Now</string>
     <string name="update_history">Update History</string>
+    <string name="install_latest_version">Install %1$s</string>
+    <string name="all_versions">All Versions</string>
+    <string name="nightly_suffix">\u0020(nightly)</string>
+    <string name="loading_versions">Loading versions\u2026</string>
+    <string name="failed_to_load_versions">Failed to load versions</string>
     <string name="downloading">Downloading\u2026</string>
     <string name="downloading_percent">Downloading\u2026 %1$d%%</string>
     <string name="re_install">Re-install</string>

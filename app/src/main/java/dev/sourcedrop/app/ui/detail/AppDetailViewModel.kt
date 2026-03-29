@@ -11,7 +11,14 @@ import dev.sourcedrop.app.downloader.ApkDownloader
 import dev.sourcedrop.app.downloader.DownloadStatus
 import dev.sourcedrop.app.installer.ApkInstaller
 import dev.sourcedrop.app.installer.ApkVerifier
+import dev.sourcedrop.app.data.local.entity.TrackedApp.Companion.SOURCE_TYPE_GITHUB
+import dev.sourcedrop.app.data.local.entity.TrackedApp.Companion.SOURCE_TYPE_GITLAB
+import dev.sourcedrop.app.notifications.NotificationHelper
 import dev.sourcedrop.app.sourceadapters.AdapterError
+import dev.sourcedrop.app.sourceadapters.AppMetadataFetcher
+import dev.sourcedrop.app.sourceadapters.GitHubAdapter
+import dev.sourcedrop.app.sourceadapters.GitLabAdapter
+import dev.sourcedrop.app.sourceadapters.ReleaseVersion
 import dev.sourcedrop.app.sourceadapters.SourceAdapterFactory
 import dev.sourcedrop.app.util.VersionComparator
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,9 +36,12 @@ class AppDetailViewModel(
     private val apkDownloader: ApkDownloader,
     private val apkInstaller: ApkInstaller,
     private val apkVerifier: ApkVerifier,
-    private val installedVersionDetector: dev.sourcedrop.app.util.InstalledVersionDetector
+    private val installedVersionDetector: dev.sourcedrop.app.util.InstalledVersionDetector,
+    private val appMetadataFetcher: AppMetadataFetcher,
+    private val notificationHelper: NotificationHelper
 ) : ViewModel() {
 
+    private var installAfterDownload = false
     private val _uiState = MutableStateFlow(AppDetailUiState())
     val uiState: StateFlow<AppDetailUiState> = _uiState.asStateFlow()
 
@@ -50,6 +60,73 @@ class AppDetailViewModel(
                     )
                 }
             }.collect {}
+        }
+    }
+
+    fun loadAllReleases() {
+        val app = _uiState.value.app ?: return
+        if (_uiState.value.isLoadingReleases) return
+        if (_uiState.value.allReleases.isNotEmpty()) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingReleases = true, releasesError = null) }
+            try {
+                val metadata = when (app.sourceType) {
+                    SOURCE_TYPE_GITHUB -> {
+                        val (owner, repo) = GitHubAdapter.parseOwnerRepo(app.sourceUrl)
+                        appMetadataFetcher.fetchFromGitHub(owner, repo)
+                    }
+                    SOURCE_TYPE_GITLAB -> {
+                        val (host, path) = GitLabAdapter.parseGitLabUrl(app.sourceUrl)
+                        appMetadataFetcher.fetchFromGitLab(host, path)
+                    }
+                    else -> null
+                }
+                _uiState.update {
+                    it.copy(
+                        allReleases = metadata?.versions ?: emptyList(),
+                        isLoadingReleases = false
+                    )
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(isLoadingReleases = false, releasesError = e.message)
+                }
+            }
+        }
+    }
+
+    fun installLatestUpdate() {
+        val event = _uiState.value.events.firstOrNull() ?: return
+        if (event.apkUrl.isBlank()) return
+
+        if (event.downloadStatus == UpdateEvent.DOWNLOAD_COMPLETE && event.localApkPath.isNotBlank()) {
+            installApk(event)
+        } else {
+            installAfterDownload = true
+            downloadApk(event)
+        }
+    }
+
+    fun downloadRelease(release: ReleaseVersion) {
+        if (release.apkUrl.isBlank()) return
+        val app = _uiState.value.app ?: return
+        if (_uiState.value.downloadingEventId != null) return
+
+        installAfterDownload = true
+        viewModelScope.launch {
+            // Reuse existing UpdateEvent if this version was already detected, otherwise create one
+            val event = updateEventRepository.getEventByVersion(app.id, release.version)
+                ?: UpdateEvent(
+                    trackedAppId = app.id,
+                    detectedVersion = release.version,
+                    releaseNotes = release.releaseNotes,
+                    apkUrl = release.apkUrl
+                ).let {
+                    val id = updateEventRepository.insertEvent(it)
+                    it.copy(id = id)
+                }
+            downloadApk(event)
         }
     }
 
@@ -161,19 +238,22 @@ class AppDetailViewModel(
                 when (progress.status) {
                     DownloadStatus.COMPLETE -> {
                         val filePath = apkDownloader.getDownloadedFilePath(downloadId) ?: ""
-                        updateEventRepository.updateEvent(
-                            event.copy(
-                                downloadStatus = UpdateEvent.DOWNLOAD_COMPLETE,
-                                downloadId = downloadId,
-                                localApkPath = filePath
-                            )
+                        val updatedEvent = event.copy(
+                            downloadStatus = UpdateEvent.DOWNLOAD_COMPLETE,
+                            downloadId = downloadId,
+                            localApkPath = filePath
                         )
+                        updateEventRepository.updateEvent(updatedEvent)
                         _uiState.update {
                             it.copy(
                                 downloadingEventId = null,
                                 downloadProgress = 100,
                                 checkSuccess = "Download complete"
                             )
+                        }
+                        if (installAfterDownload) {
+                            installAfterDownload = false
+                            installApk(updatedEvent)
                         }
                     }
                     DownloadStatus.FAILED, DownloadStatus.CANCELLED -> {
@@ -228,14 +308,20 @@ class AppDetailViewModel(
                 updateEventRepository.updateEvent(
                     event.copy(installStatus = UpdateEvent.INSTALL_STARTED)
                 )
-                // Update currentVersion to reflect what was just installed
+                // Update currentVersion and clear update status if latest was installed
                 val app = _uiState.value.app ?: return@launch
+                val now = System.currentTimeMillis()
+                val isLatest = event.detectedVersion == app.latestKnownVersion
                 trackedAppRepository.updateApp(
                     app.copy(
                         currentVersion = event.detectedVersion,
-                        updatedAt = System.currentTimeMillis()
+                        lastStatus = if (isLatest) TrackedApp.STATUS_UP_TO_DATE else app.lastStatus,
+                        updatedAt = now
                     )
                 )
+                if (isLatest) {
+                    notificationHelper.cancelUpdateNotification(app.id)
+                }
             }
         } else {
             _uiState.update {
@@ -288,7 +374,9 @@ class AppDetailViewModel(
             apkDownloader: ApkDownloader,
             apkInstaller: ApkInstaller,
             apkVerifier: ApkVerifier,
-            installedVersionDetector: dev.sourcedrop.app.util.InstalledVersionDetector
+            installedVersionDetector: dev.sourcedrop.app.util.InstalledVersionDetector,
+            appMetadataFetcher: AppMetadataFetcher,
+            notificationHelper: NotificationHelper
         ): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
@@ -296,7 +384,7 @@ class AppDetailViewModel(
                     return AppDetailViewModel(
                         appId, trackedAppRepository, updateEventRepository,
                         adapterFactory, apkDownloader, apkInstaller, apkVerifier,
-                        installedVersionDetector
+                        installedVersionDetector, appMetadataFetcher, notificationHelper
                     ) as T
                 }
             }
