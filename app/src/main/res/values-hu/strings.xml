@@ -61,6 +61,8 @@
     <string name="add_and_install">Hozz\u00e1ad\u00e1s \u00e9s telep\u00edt\u00e9s</string>
     <string name="add_app_button">Alkalmaz\u00e1s hozz\u00e1ad\u00e1sa</string>
     <string name="downloading_progress">Let\u00f6lt\u00e9s\u2026 %1$d%%</string>
+    <string name="installing">Telep\u00edt\u00e9s\u2026</string>
+    <string name="retry_install">Telep\u00edt\u00e9s \u00fajra</string>
 
     <!-- App Form - Edit -->
     <string name="edit_app">Alkalmaz\u00e1s szerkeszt\u00e9se</string>

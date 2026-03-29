@@ -401,10 +401,15 @@ class AppFormViewModel(
                             )
                         }
                         _uiState.update { it.copy(isDownloading = false, downloadProgress = 100) }
-                        if (filePath.isNotBlank()) {
+                        if (filePath.isNotBlank() && state.packageName.isNotBlank()) {
                             apkInstaller.launchInstall(filePath)
+                            _uiState.update { it.copy(isInstalling = true, pendingApkPath = filePath) }
+                        } else if (filePath.isNotBlank()) {
+                            apkInstaller.launchInstall(filePath)
+                            _uiState.update { it.copy(isSaved = true) }
+                        } else {
+                            _uiState.update { it.copy(isSaved = true) }
                         }
-                        _uiState.update { it.copy(isSaved = true) }
                     }
                     DownloadStatus.FAILED, DownloadStatus.CANCELLED -> {
                         if (event != null) {
@@ -418,6 +423,20 @@ class AppFormViewModel(
                 }
             }
         }
+    }
+
+    fun checkInstallComplete() {
+        val state = _uiState.value
+        if (!state.isInstalling) return
+        if (state.packageName.isNotBlank() && apkInstaller.isPackageInstalled(state.packageName)) {
+            _uiState.update { it.copy(isInstalling = false, isSaved = true) }
+        }
+    }
+
+    fun retryInstall() {
+        val state = _uiState.value
+        if (!state.isInstalling || state.pendingApkPath.isBlank()) return
+        apkInstaller.launchInstall(state.pendingApkPath)
     }
 
     private fun validate(state: AppFormUiState): Map<String, String> {

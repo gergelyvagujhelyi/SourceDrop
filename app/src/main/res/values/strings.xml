@@ -61,6 +61,8 @@
     <string name="add_and_install">Add &amp; Install</string>
     <string name="add_app_button">Add App</string>
     <string name="downloading_progress">Downloading\u2026 %1$d%%</string>
+    <string name="installing">Installing\u2026</string>
+    <string name="retry_install">Retry Install</string>
 
     <!-- App Form - Edit -->
     <string name="edit_app">Edit App</string>

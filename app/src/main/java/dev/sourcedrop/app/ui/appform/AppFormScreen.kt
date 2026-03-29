@@ -46,6 +46,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.sourcedrop.app.R
 import dev.sourcedrop.app.data.local.entity.TrackedApp
@@ -112,6 +113,8 @@ private fun AddWizardScreen(
                 onVersionSelect = viewModel::selectVersion,
                 onSave = viewModel::save,
                 onSaveAndInstall = viewModel::saveAndInstall,
+                onCheckInstall = viewModel::checkInstallComplete,
+                onRetryInstall = viewModel::retryInstall,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
@@ -193,9 +196,16 @@ private fun StepDetails(
     onVersionSelect: (Int) -> Unit,
     onSave: () -> Unit,
     onSaveAndInstall: () -> Unit,
+    onCheckInstall: () -> Unit,
+    onRetryInstall: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val preReleaseSuffix = stringResource(R.string.pre_release_suffix)
+
+    LifecycleResumeEffect(uiState.isInstalling) {
+        onCheckInstall()
+        onPauseOrDispose {}
+    }
 
     Column(
         modifier = modifier.verticalScroll(rememberScrollState()),
@@ -290,23 +300,50 @@ private fun StepDetails(
         val hasApk = selectedVersion?.apkUrl?.isNotBlank() == true
         val showInstall = !uiState.isAppInstalled && hasApk
 
-        Button(
-            onClick = if (showInstall) onSaveAndInstall else onSave,
-            enabled = !uiState.isDownloading,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            if (uiState.isDownloading) {
+        if (uiState.isInstalling) {
+            Button(
+                onClick = {},
+                enabled = false,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(20.dp),
                     strokeWidth = 2.dp,
                     color = MaterialTheme.colorScheme.onPrimary
                 )
                 Text(
-                    text = stringResource(R.string.downloading_progress, uiState.downloadProgress),
+                    text = stringResource(R.string.installing),
                     modifier = Modifier.padding(start = 8.dp)
                 )
-            } else {
-                Text(if (showInstall) stringResource(R.string.add_and_install) else stringResource(R.string.add_app_button))
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedButton(
+                onClick = onRetryInstall,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.retry_install))
+            }
+        } else {
+            Button(
+                onClick = if (showInstall) onSaveAndInstall else onSave,
+                enabled = !uiState.isDownloading,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (uiState.isDownloading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                    Text(
+                        text = stringResource(R.string.downloading_progress, uiState.downloadProgress),
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                } else {
+                    Text(if (showInstall) stringResource(R.string.add_and_install) else stringResource(R.string.add_app_button))
+                }
             }
         }
 

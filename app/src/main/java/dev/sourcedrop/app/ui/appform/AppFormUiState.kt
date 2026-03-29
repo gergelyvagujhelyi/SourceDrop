@@ -26,7 +26,9 @@ data class AppFormUiState(
     val selectedVersionIndex: Int = 0,
     val isAppInstalled: Boolean = false,
     val isDownloading: Boolean = false,
-    val downloadProgress: Int = 0
+    val downloadProgress: Int = 0,
+    val isInstalling: Boolean = false,
+    val pendingApkPath: String = ""
 ) {
     val sourceTypeLabel: String get() = when (sourceType) {
         TrackedApp.SOURCE_TYPE_GITHUB -> "GitHub Release"
