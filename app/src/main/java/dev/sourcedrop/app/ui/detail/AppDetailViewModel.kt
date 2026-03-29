@@ -317,8 +317,18 @@ class AppDetailViewModel(
                 )
             }
         } else {
+            // Reset download status so the user can re-download
+            viewModelScope.launch {
+                apkDownloader.deleteApk(event.localApkPath)
+                updateEventRepository.updateEvent(
+                    event.copy(
+                        downloadStatus = UpdateEvent.DOWNLOAD_NONE,
+                        localApkPath = ""
+                    )
+                )
+            }
             _uiState.update {
-                it.copy(checkError = "Failed to launch installer. APK file may be missing.")
+                it.copy(checkError = "Failed to install. The downloaded file may be corrupt or not a valid APK.")
             }
         }
     }

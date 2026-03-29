@@ -114,12 +114,31 @@ class ApkInstaller(private val context: Context) {
     fun launchInstall(apkFilePath: String): Boolean {
         val file = File(apkFilePath)
         if (!file.exists()) return false
+        if (!isValidApk(file)) return false
 
         return try {
             val intent = createInstallIntent(apkFilePath)
             context.startActivity(intent)
             true
         } catch (e: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Checks that a file is a valid APK/ZIP by verifying the magic bytes (PK\x03\x04).
+     */
+    private fun isValidApk(file: File): Boolean {
+        if (file.length() < 4) return false
+        return try {
+            file.inputStream().use {
+                val header = ByteArray(4)
+                if (it.read(header) < 4) return false
+                // ZIP/APK magic: PK\x03\x04
+                header[0] == 0x50.toByte() && header[1] == 0x4B.toByte() &&
+                    header[2] == 0x03.toByte() && header[3] == 0x04.toByte()
+            }
+        } catch (_: Exception) {
             false
         }
     }
