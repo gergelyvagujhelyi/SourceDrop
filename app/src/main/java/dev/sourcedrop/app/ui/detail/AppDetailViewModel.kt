@@ -116,8 +116,14 @@ class AppDetailViewModel(
         installAfterDownload = true
         viewModelScope.launch {
             // Reuse existing UpdateEvent if this version was already detected, otherwise create one
-            val event = updateEventRepository.getEventByVersion(app.id, release.version)
-                ?: UpdateEvent(
+            var event = updateEventRepository.getEventByVersion(app.id, release.version)
+            if (event != null && event.apkUrl.isBlank()) {
+                // Existing event has no APK URL — update it from the release
+                event = event.copy(apkUrl = release.apkUrl)
+                updateEventRepository.updateEvent(event)
+            }
+            if (event == null) {
+                event = UpdateEvent(
                     trackedAppId = app.id,
                     detectedVersion = release.version,
                     releaseNotes = release.releaseNotes,
@@ -126,6 +132,7 @@ class AppDetailViewModel(
                     val id = updateEventRepository.insertEvent(it)
                     it.copy(id = id)
                 }
+            }
             downloadApk(event)
         }
     }
@@ -310,8 +317,18 @@ class AppDetailViewModel(
                 )
             }
         } else {
+            // Reset download status so the user can re-download
+            viewModelScope.launch {
+                apkDownloader.deleteApk(event.localApkPath)
+                updateEventRepository.updateEvent(
+                    event.copy(
+                        downloadStatus = UpdateEvent.DOWNLOAD_NONE,
+                        localApkPath = ""
+                    )
+                )
+            }
             _uiState.update {
-                it.copy(checkError = "Failed to launch installer. APK file may be missing.")
+                it.copy(checkError = "Failed to install. The downloaded file may be corrupt or not a valid APK.")
             }
         }
     }
