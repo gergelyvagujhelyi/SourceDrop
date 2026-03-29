@@ -308,13 +308,30 @@ class AppDetailViewModel(
                 updateEventRepository.updateEvent(
                     event.copy(installStatus = UpdateEvent.INSTALL_STARTED)
                 )
-                // Update currentVersion and clear update status if latest was installed
-                val app = _uiState.value.app ?: return@launch
+            }
+        } else {
+            _uiState.update {
+                it.copy(checkError = "Failed to launch installer. APK file may be missing.")
+            }
+        }
+    }
+
+    fun verifyInstallation() {
+        viewModelScope.launch {
+            val app = _uiState.value.app ?: return@launch
+            if (app.packageName.isBlank()) return@launch
+
+            val installedVersion = installedVersionDetector.getInstalledVersion(app.packageName)
+                ?: return@launch
+
+            if (installedVersion != app.currentVersion) {
                 val now = System.currentTimeMillis()
-                val isLatest = event.detectedVersion == app.latestKnownVersion
+                val isLatest = installedVersion == app.latestKnownVersion ||
+                    VersionComparator.isNewer(app.latestKnownVersion, installedVersion) ||
+                    installedVersion == app.latestKnownVersion
                 trackedAppRepository.updateApp(
                     app.copy(
-                        currentVersion = event.detectedVersion,
+                        currentVersion = installedVersion,
                         lastStatus = if (isLatest) TrackedApp.STATUS_UP_TO_DATE else app.lastStatus,
                         updatedAt = now
                     )
@@ -322,10 +339,6 @@ class AppDetailViewModel(
                 if (isLatest) {
                     notificationHelper.cancelUpdateNotification(app.id)
                 }
-            }
-        } else {
-            _uiState.update {
-                it.copy(checkError = "Failed to launch installer. APK file may be missing.")
             }
         }
     }
