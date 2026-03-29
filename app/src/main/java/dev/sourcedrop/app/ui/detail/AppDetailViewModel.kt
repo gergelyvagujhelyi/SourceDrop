@@ -116,8 +116,14 @@ class AppDetailViewModel(
         installAfterDownload = true
         viewModelScope.launch {
             // Reuse existing UpdateEvent if this version was already detected, otherwise create one
-            val event = updateEventRepository.getEventByVersion(app.id, release.version)
-                ?: UpdateEvent(
+            var event = updateEventRepository.getEventByVersion(app.id, release.version)
+            if (event != null && event.apkUrl.isBlank()) {
+                // Existing event has no APK URL — update it from the release
+                event = event.copy(apkUrl = release.apkUrl)
+                updateEventRepository.updateEvent(event)
+            }
+            if (event == null) {
+                event = UpdateEvent(
                     trackedAppId = app.id,
                     detectedVersion = release.version,
                     releaseNotes = release.releaseNotes,
@@ -126,6 +132,7 @@ class AppDetailViewModel(
                     val id = updateEventRepository.insertEvent(it)
                     it.copy(id = id)
                 }
+            }
             downloadApk(event)
         }
     }
