@@ -77,6 +77,7 @@ class GitLabAdapter(private val client: OkHttpClient) : SourceAdapter {
         val links = assets["links"]?.jsonArray ?: return ""
         val useDefault = pattern.isBlank()
 
+        val candidates = mutableListOf<Pair<String, String>>()
         for (link in links) {
             val obj = link.jsonObject
             val name = obj["name"]?.jsonPrimitive?.content ?: ""
@@ -89,9 +90,20 @@ class GitLabAdapter(private val client: OkHttpClient) : SourceAdapter {
                 SafeRegex.containsMatch(pattern, name, setOf(RegexOption.IGNORE_CASE)) ||
                     SafeRegex.containsMatch(pattern, url, setOf(RegexOption.IGNORE_CASE))
             }
-            if (matches) return url
+            if (matches) candidates.add(name to url)
         }
-        return ""
+        return preferSignedApk(candidates)
+    }
+
+    private fun preferSignedApk(candidates: List<Pair<String, String>>): String {
+        if (candidates.isEmpty()) return ""
+        candidates.firstOrNull { (name, _) ->
+            name.contains("signed", ignoreCase = true) && !name.contains("unsigned", ignoreCase = true)
+        }?.let { return it.second }
+        candidates.firstOrNull { (name, _) ->
+            !name.contains("unsigned", ignoreCase = true)
+        }?.let { return it.second }
+        return candidates.first().second
     }
 
     private fun extractVersion(tagName: String, pattern: String): String {

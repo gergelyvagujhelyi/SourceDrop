@@ -77,10 +77,13 @@ class AppMetadataFetcher(private val client: OkHttpClient) {
                 val version = tagName.trimStart('v', 'V')
                 val isPreRelease = release["prerelease"]?.jsonPrimitive?.boolean ?: false
                 val releaseNotes = release["body"]?.jsonPrimitive?.content ?: ""
-                val apkUrl = release["assets"]?.jsonArray?.firstOrNull { asset ->
-                    val name = asset.jsonObject["name"]?.jsonPrimitive?.content ?: ""
-                    name.endsWith(".apk", ignoreCase = true)
-                }?.jsonObject?.get("browser_download_url")?.jsonPrimitive?.content ?: ""
+                val apkCandidates = release["assets"]?.jsonArray?.mapNotNull { asset ->
+                    val name = asset.jsonObject["name"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                    if (!name.endsWith(".apk", ignoreCase = true)) return@mapNotNull null
+                    val url = asset.jsonObject["browser_download_url"]?.jsonPrimitive?.content ?: return@mapNotNull null
+                    name to url
+                } ?: emptyList()
+                val apkUrl = preferSignedApk(apkCandidates)
                 ReleaseVersion(tagName = tagName, version = version, apkUrl = apkUrl, releaseNotes = releaseNotes, isPreRelease = isPreRelease)
             }
         } catch (e: AdapterError.RateLimitError) { throw e }
@@ -243,6 +246,17 @@ class AppMetadataFetcher(private val client: OkHttpClient) {
         if (diff <= 0) return "soon"
         val minutes = (diff + 59) / 60
         return "in $minutes min"
+    }
+
+    private fun preferSignedApk(candidates: List<Pair<String, String>>): String {
+        if (candidates.isEmpty()) return ""
+        candidates.firstOrNull { (name, _) ->
+            name.contains("signed", ignoreCase = true) && !name.contains("unsigned", ignoreCase = true)
+        }?.let { return it.second }
+        candidates.firstOrNull { (name, _) ->
+            !name.contains("unsigned", ignoreCase = true)
+        }?.let { return it.second }
+        return candidates.first().second
     }
 
     private fun formatRepoName(name: String): String {
