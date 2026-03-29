@@ -11,7 +11,6 @@ import dev.sourcedrop.app.downloader.ApkDownloader
 import dev.sourcedrop.app.installer.ApkInstaller
 import dev.sourcedrop.app.sourceadapters.SourceAdapterFactory
 import dev.sourcedrop.app.util.VersionComparator
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
@@ -87,27 +86,45 @@ class AppListViewModel(
         return apkInstaller.isPackageInstalled(packageName)
     }
 
+    private data class PendingDelete(val appId: Long, val packageName: String)
+    private var pendingDelete: PendingDelete? = null
+
     fun deleteApp(id: Long, packageName: String = "") {
         viewModelScope.launch {
             // Launch system uninstall first if the app is actually installed
             if (packageName.isNotBlank() && apkInstaller.isPackageInstalled(packageName)) {
+                pendingDelete = PendingDelete(id, packageName)
                 apkInstaller.launchUninstall(packageName)
-                // Give the system time to show the uninstall dialog
-                // before we delete the record and trigger recomposition
-                delay(500)
+                return@launch
             }
 
-            // Clean up downloaded APK files for this app
-            val events = updateEventRepository.getEventsForAppOnce(id)
-            for (event in events) {
-                if (event.localApkPath.isNotBlank()) {
-                    apkDownloader.deleteApk(event.localApkPath)
-                }
-            }
-
-            // Delete the record (cascades to update_events)
-            repository.deleteApp(id)
+            finishDelete(id)
         }
+    }
+
+    fun onResume() {
+        val pending = pendingDelete ?: return
+        pendingDelete = null
+
+        viewModelScope.launch {
+            // Only delete the record if the package was actually uninstalled
+            if (!apkInstaller.isPackageInstalled(pending.packageName)) {
+                finishDelete(pending.appId)
+            }
+        }
+    }
+
+    private suspend fun finishDelete(id: Long) {
+        // Clean up downloaded APK files for this app
+        val events = updateEventRepository.getEventsForAppOnce(id)
+        for (event in events) {
+            if (event.localApkPath.isNotBlank()) {
+                apkDownloader.deleteApk(event.localApkPath)
+            }
+        }
+
+        // Delete the record (cascades to update_events)
+        repository.deleteApp(id)
     }
 
     fun refreshAll() {
