@@ -71,6 +71,11 @@ class NotificationHelper(private val context: Context) {
             .notify(NOTIFICATION_ID_BASE + appId.toInt(), notification)
     }
 
+    fun cancelUpdateNotification(appId: Long) {
+        NotificationManagerCompat.from(context)
+            .cancel(NOTIFICATION_ID_BASE + appId.toInt())
+    }
+
     fun hasNotificationPermission(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ContextCompat.checkSelfPermission(

@@ -13,6 +13,7 @@ import dev.sourcedrop.app.installer.ApkInstaller
 import dev.sourcedrop.app.installer.ApkVerifier
 import dev.sourcedrop.app.data.local.entity.TrackedApp.Companion.SOURCE_TYPE_GITHUB
 import dev.sourcedrop.app.data.local.entity.TrackedApp.Companion.SOURCE_TYPE_GITLAB
+import dev.sourcedrop.app.notifications.NotificationHelper
 import dev.sourcedrop.app.sourceadapters.AdapterError
 import dev.sourcedrop.app.sourceadapters.AppMetadataFetcher
 import dev.sourcedrop.app.sourceadapters.GitHubAdapter
@@ -36,7 +37,8 @@ class AppDetailViewModel(
     private val apkInstaller: ApkInstaller,
     private val apkVerifier: ApkVerifier,
     private val installedVersionDetector: dev.sourcedrop.app.util.InstalledVersionDetector,
-    private val appMetadataFetcher: AppMetadataFetcher
+    private val appMetadataFetcher: AppMetadataFetcher,
+    private val notificationHelper: NotificationHelper
 ) : ViewModel() {
 
     private var installAfterDownload = false
@@ -306,14 +308,20 @@ class AppDetailViewModel(
                 updateEventRepository.updateEvent(
                     event.copy(installStatus = UpdateEvent.INSTALL_STARTED)
                 )
-                // Update currentVersion to reflect what was just installed
+                // Update currentVersion and clear update status if latest was installed
                 val app = _uiState.value.app ?: return@launch
+                val now = System.currentTimeMillis()
+                val isLatest = event.detectedVersion == app.latestKnownVersion
                 trackedAppRepository.updateApp(
                     app.copy(
                         currentVersion = event.detectedVersion,
-                        updatedAt = System.currentTimeMillis()
+                        lastStatus = if (isLatest) TrackedApp.STATUS_UP_TO_DATE else app.lastStatus,
+                        updatedAt = now
                     )
                 )
+                if (isLatest) {
+                    notificationHelper.cancelUpdateNotification(app.id)
+                }
             }
         } else {
             _uiState.update {
@@ -367,7 +375,8 @@ class AppDetailViewModel(
             apkInstaller: ApkInstaller,
             apkVerifier: ApkVerifier,
             installedVersionDetector: dev.sourcedrop.app.util.InstalledVersionDetector,
-            appMetadataFetcher: AppMetadataFetcher
+            appMetadataFetcher: AppMetadataFetcher,
+            notificationHelper: NotificationHelper
         ): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
@@ -375,7 +384,7 @@ class AppDetailViewModel(
                     return AppDetailViewModel(
                         appId, trackedAppRepository, updateEventRepository,
                         adapterFactory, apkDownloader, apkInstaller, apkVerifier,
-                        installedVersionDetector, appMetadataFetcher
+                        installedVersionDetector, appMetadataFetcher, notificationHelper
                     ) as T
                 }
             }
