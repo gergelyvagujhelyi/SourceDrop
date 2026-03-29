@@ -95,7 +95,8 @@ fun SourceDropNavHost(container: AppContainer) {
             AppDetailScreen(
                 viewModel = viewModel,
                 onNavigateBack = { navController.popBackStack() },
-                onEdit = { appId -> navController.navigate(EditAppRoute(appId)) }
+                onEdit = { appId -> navController.navigate(EditAppRoute(appId)) },
+                onSettings = { navController.navigate(SettingsRoute) }
             )
         }
 
