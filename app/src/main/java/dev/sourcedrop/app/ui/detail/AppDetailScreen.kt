@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -24,6 +25,8 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.InstallMobile
 import androidx.compose.material.icons.filled.NewReleases
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -39,7 +42,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -48,7 +53,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -60,6 +67,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.sourcedrop.app.R
 import dev.sourcedrop.app.data.local.entity.TrackedApp
 import dev.sourcedrop.app.data.local.entity.UpdateEvent
+import dev.sourcedrop.app.sourceadapters.ReleaseVersion
 import java.text.DateFormat
 import java.util.Date
 
@@ -154,25 +162,71 @@ fun AppDetailScreen(
                 item { AppInfoCard(app) }
                 item { CheckNowSection(uiState.isChecking) { viewModel.checkNow() } }
 
-                if (uiState.events.isNotEmpty()) {
-                    item {
-                        Text(
-                            text = stringResource(R.string.update_history),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
-                    items(uiState.events, key = { it.id }) { event ->
-                        UpdateEventCard(
-                            event = event,
-                            isDownloading = uiState.downloadingEventId == event.id,
-                            downloadProgress = if (uiState.downloadingEventId == event.id) {
-                                uiState.downloadProgress
-                            } else 0,
-                            onDownload = { viewModel.downloadApk(event) },
-                            onInstall = { viewModel.installApk(event) },
-                            onDelete = { viewModel.deleteApk(event) }
-                        )
+                item {
+                    var expanded by remember { mutableStateOf(false) }
+                    Column {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    expanded = !expanded
+                                    if (expanded) viewModel.loadAllReleases()
+                                },
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = stringResource(R.string.all_versions),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Icon(
+                                imageVector = if (expanded) Icons.Filled.KeyboardArrowUp
+                                    else Icons.Filled.KeyboardArrowDown,
+                                contentDescription = if (expanded) "Collapse" else "Expand"
+                            )
+                        }
+                        if (expanded) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            when {
+                                uiState.isLoadingReleases -> {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(24.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = stringResource(R.string.loading_versions),
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
+                                }
+                                uiState.releasesError != null -> {
+                                    Text(
+                                        text = stringResource(R.string.failed_to_load_versions),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
+                                uiState.allReleases.isEmpty() -> {
+                                    Text(
+                                        text = stringResource(R.string.no_versions_found),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                else -> {
+                                    uiState.allReleases.forEach { release ->
+                                        ReleaseVersionCard(release = release)
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -502,6 +556,78 @@ private fun InstallPermissionDialog(
             }
         }
     )
+}
+
+private val NIGHTLY_PATTERN = Regex(
+    "nightly|dev-build|canary",
+    RegexOption.IGNORE_CASE
+)
+
+@Composable
+private fun ReleaseVersionCard(release: ReleaseVersion) {
+    val isNightly = NIGHTLY_PATTERN.containsMatchIn(release.tagName)
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "v${release.version}",
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold
+                )
+                if (isNightly) {
+                    VersionBadge(
+                        text = stringResource(R.string.nightly_suffix).trim(),
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                } else if (release.isPreRelease) {
+                    VersionBadge(
+                        text = stringResource(R.string.pre_release_suffix).trim(),
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            }
+
+            if (release.releaseNotes.isNotBlank()) {
+                Text(
+                    text = release.releaseNotes,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun VersionBadge(text: String, color: androidx.compose.ui.graphics.Color) {
+    Surface(
+        shape = RoundedCornerShape(4.dp),
+        color = color.copy(alpha = 0.15f)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            color = color,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+        )
+    }
 }
 
 private fun formatTimestamp(millis: Long): String {

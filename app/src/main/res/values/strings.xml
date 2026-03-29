@@ -114,6 +114,10 @@
     <string name="checking">Checking\u2026</string>
     <string name="check_now">Check Now</string>
     <string name="update_history">Update History</string>
+    <string name="all_versions">All Versions</string>
+    <string name="nightly_suffix">\u0020(nightly)</string>
+    <string name="loading_versions">Loading versions\u2026</string>
+    <string name="failed_to_load_versions">Failed to load versions</string>
     <string name="downloading">Downloading\u2026</string>
     <string name="downloading_percent">Downloading\u2026 %1$d%%</string>
     <string name="re_install">Re-install</string>
