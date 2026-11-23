@@ -119,7 +119,7 @@
     <string name="checking">Ellen\u0151rz\u00e9s\u2026</string>
     <string name="check_now">Ellen\u0151rz\u00e9s most</string>
     <string name="checking_for_version">%1$s keres\u00e9se\u2026</string>
-    <string name="open_request_not_tracked">A(z) %1$s m\u00e9g nincs hozz\u00e1adva a SourceDrophoz. Add hozz\u00e1, hogy megkapd a friss\u00edt\u00e9seit.</string>
+    <string name="open_request_not_tracked">A(z) %1$s m\u00e9g nincs a SourceDropban</string>
     <string name="update_history">Friss\u00edt\u00e9si el\u0151zm\u00e9nyek</string>
     <string name="install_latest_version">Telep\u00edt\u00e9s: %1$s</string>
     <string name="all_versions">\u00d6sszes verzi\u00f3</string>
