@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -38,11 +39,14 @@ class AppDetailViewModel(
     private val apkVerifier: ApkVerifier,
     private val installedVersionDetector: dev.sourcedrop.app.util.InstalledVersionDetector,
     private val appMetadataFetcher: AppMetadataFetcher,
-    private val notificationHelper: NotificationHelper
+    private val notificationHelper: NotificationHelper,
+    autoCheck: Boolean = false,
+    /** The version the app that opened this page said is out (a hint, see OpenRequest). */
+    private val announcedVersion: String? = null
 ) : ViewModel() {
 
     private var installAfterDownload = false
-    private val _uiState = MutableStateFlow(AppDetailUiState())
+    private val _uiState = MutableStateFlow(AppDetailUiState(announcedVersion = announcedVersion))
     val uiState: StateFlow<AppDetailUiState> = _uiState.asStateFlow()
 
     init {
@@ -60,6 +64,13 @@ class AppDetailViewModel(
                     )
                 }
             }.collect {}
+        }
+
+        if (autoCheck) {
+            viewModelScope.launch {
+                _uiState.first { it.app != null }
+                checkNow()
+            }
         }
     }
 
@@ -191,10 +202,13 @@ class AppDetailViewModel(
                     }
                 }
 
-                val message = if (isNewer) {
-                    "Update found: ${result.version}"
-                } else {
-                    "Up to date (${result.version})"
+                val announced = announcedVersion
+                val message = when {
+                    announced != null && VersionComparator.isNewer(result.version, announced) ->
+                        "${app.displayName} $announced was announced, but the source still " +
+                            "lists ${result.version}. Try again in a few minutes."
+                    isNewer -> "Update found: ${result.version}"
+                    else -> "Up to date (${result.version})"
                 }
                 _uiState.update { it.copy(isChecking = false, checkSuccess = message) }
 
@@ -406,7 +420,9 @@ class AppDetailViewModel(
             apkVerifier: ApkVerifier,
             installedVersionDetector: dev.sourcedrop.app.util.InstalledVersionDetector,
             appMetadataFetcher: AppMetadataFetcher,
-            notificationHelper: NotificationHelper
+            notificationHelper: NotificationHelper,
+            autoCheck: Boolean = false,
+            announcedVersion: String? = null
         ): ViewModelProvider.Factory {
             return object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
@@ -414,7 +430,8 @@ class AppDetailViewModel(
                     return AppDetailViewModel(
                         appId, trackedAppRepository, updateEventRepository,
                         adapterFactory, apkDownloader, apkInstaller, apkVerifier,
-                        installedVersionDetector, appMetadataFetcher, notificationHelper
+                        installedVersionDetector, appMetadataFetcher, notificationHelper,
+                        autoCheck, announcedVersion
                     ) as T
                 }
             }
