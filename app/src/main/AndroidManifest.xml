@@ -4,7 +4,6 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
 
     <!--
@@ -14,6 +13,28 @@
         for sideload distribution (GitHub Releases, F-Droid, direct APK) and should
         NOT be submitted to the Play Store without scoping this permission.
     -->
+
+    <!--
+        Which other apps SourceDrop can see (installed version, signing key, icon,
+        the Installed Apps list). Deliberately not QUERY_ALL_PACKAGES: Play Protect
+        treats it as high-risk, especially next to REQUEST_INSTALL_PACKAGES.
+        Apps with a launcher icon cover almost everything people sideload; home
+        screens and keyboards are added because some of them have no icon.
+        Apps matching none of these look "not installed" to SourceDrop.
+    -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.HOME" />
+        </intent>
+        <intent>
+            <action android:name="android.view.InputMethod" />
+        </intent>
+    </queries>
 
     <application
         android:name=".SourceDropApplication"
