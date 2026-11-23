@@ -1,6 +1,7 @@
 package dev.sourcedrop.app.sourceadapters
 
 import dev.sourcedrop.app.data.local.entity.TrackedApp
+import dev.sourcedrop.app.updates.GitHubRateLimit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -17,7 +18,8 @@ import okhttp3.Request
 
 class GitHubAdapter(
     private val client: OkHttpClient,
-    private val apiToken: String = ""
+    private val apiToken: String = "",
+    private val rateLimit: GitHubRateLimit? = null
 ) : SourceAdapter {
 
     private val json = Json { ignoreUnknownKeys = true }
@@ -40,13 +42,19 @@ class GitHubAdapter(
             } catch (e: Exception) {
                 throw AdapterError.NetworkError("Failed to connect to GitHub: ${e.message}", e)
             }
+            val limited = rateLimit?.record(response.code) { response.header(it) }
+                ?: GitHubRateLimit.isRateLimited(
+                    response.code,
+                    response.header("x-ratelimit-remaining")?.trim()?.toIntOrNull(),
+                    response.header("retry-after")?.trim()?.toLongOrNull()
+                )
 
             if (!response.isSuccessful) {
                 val code = response.code
                 val resetHeader = response.header("x-ratelimit-reset")
                 response.close()
                 if (code == 404) throw AdapterError.NotFoundError("Repository not found: $owner/$repo")
-                if (code == 403 || code == 429) {
+                if (limited) {
                     val resetInfo = formatResetTime(resetHeader)
                     throw AdapterError.RateLimitError("GitHub API rate limit exceeded. Resets $resetInfo")
                 }

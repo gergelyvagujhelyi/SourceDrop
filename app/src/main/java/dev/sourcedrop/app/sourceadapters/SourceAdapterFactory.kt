@@ -2,16 +2,18 @@ package dev.sourcedrop.app.sourceadapters
 
 import dev.sourcedrop.app.data.local.entity.TrackedApp
 import dev.sourcedrop.app.data.preferences.AppPreferences
+import dev.sourcedrop.app.updates.GitHubRateLimit
 import okhttp3.OkHttpClient
 
 class SourceAdapterFactory(
     private val client: OkHttpClient,
-    private val preferences: AppPreferences
+    private val preferences: AppPreferences,
+    private val githubRateLimit: GitHubRateLimit? = null
 ) {
 
     fun create(sourceType: String): SourceAdapter {
         return when (sourceType) {
-            TrackedApp.SOURCE_TYPE_GITHUB -> GitHubAdapter(client, preferences.githubApiToken)
+            TrackedApp.SOURCE_TYPE_GITHUB -> GitHubAdapter(client, preferences.githubApiToken, githubRateLimit)
             TrackedApp.SOURCE_TYPE_GITLAB -> GitLabAdapter(client)
             TrackedApp.SOURCE_TYPE_JSON -> JsonAdapter(client)
             TrackedApp.SOURCE_TYPE_DIRECT_APK -> DirectApkAdapter(client)

@@ -11,6 +11,12 @@ import dev.sourcedrop.app.installer.ApkInstaller
 import dev.sourcedrop.app.sourceadapters.AdapterResult
 import dev.sourcedrop.app.sourceadapters.SourceAdapter
 import dev.sourcedrop.app.sourceadapters.SourceAdapterFactory
+import dev.sourcedrop.app.testutil.FakeTrackedAppDao
+import dev.sourcedrop.app.testutil.FakeUpdateEventDao
+import dev.sourcedrop.app.testutil.InMemoryRateLimitStore
+import dev.sourcedrop.app.updates.GitHubRateLimit
+import dev.sourcedrop.app.updates.InstalledVersionSync
+import dev.sourcedrop.app.updates.UpdateChecker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -65,6 +71,8 @@ class AppListViewModelTest {
         Dispatchers.resetMain()
     }
 
+    private val versionSync by lazy { InstalledVersionSync(appRepository, installedVersionOf = { null }) }
+
     private fun createViewModel(
         selfPackageName: String = "dev.sourcedrop.app",
         selfVersion: String = "1.0.0"
@@ -72,7 +80,11 @@ class AppListViewModelTest {
         return AppListViewModel(
             repository = appRepository,
             updateEventRepository = eventRepository,
-            adapterFactory = mockAdapterFactory,
+            updateChecker = UpdateChecker(
+                appRepository, eventRepository, mockAdapterFactory, versionSync,
+                GitHubRateLimit(InMemoryRateLimitStore(), { "" })
+            ),
+            versionSync = versionSync,
             apkDownloader = mockDownloader,
             apkInstaller = mockInstaller,
             selfPackageName = selfPackageName,
@@ -282,68 +294,5 @@ class AppListViewModelTest {
         advanceUntilIdle()
 
         assertNull(vm.uiState.value.refreshError)
-    }
-
-    // ---- Fake DAOs ----
-
-    private class FakeTrackedAppDao : TrackedAppDao {
-        private var autoId = 1L
-        private val apps = MutableStateFlow<List<TrackedApp>>(emptyList())
-
-        override fun getAll(): Flow<List<TrackedApp>> = apps.map { it.sortedBy { a -> a.displayName } }
-
-        override fun getById(id: Long): Flow<TrackedApp?> = apps.map { list -> list.find { it.id == id } }
-
-        override suspend fun getByIdOnce(id: Long): TrackedApp? = apps.value.find { it.id == id }
-
-        override suspend fun insert(app: TrackedApp): Long {
-            val id = autoId++
-            val newApp = app.copy(id = id)
-            apps.value = apps.value + newApp
-            return id
-        }
-
-        override suspend fun update(app: TrackedApp) {
-            apps.value = apps.value.map { if (it.id == app.id) app else it }
-        }
-
-        override suspend fun deleteById(id: Long) {
-            apps.value = apps.value.filter { it.id != id }
-        }
-
-        override suspend fun getByPackageName(packageName: String): TrackedApp? =
-            apps.value.find { it.packageName == packageName }
-
-        override fun getCount(): Flow<Int> = apps.map { it.size }
-    }
-
-    private class FakeUpdateEventDao : UpdateEventDao {
-        private var autoId = 1L
-        private val events = MutableStateFlow<List<UpdateEvent>>(emptyList())
-
-        override fun getEventsForApp(appId: Long): Flow<List<UpdateEvent>> =
-            events.map { list -> list.filter { it.trackedAppId == appId }.sortedByDescending { it.detectedAt } }
-
-        override suspend fun getEventsForAppOnce(appId: Long): List<UpdateEvent> =
-            events.value.filter { it.trackedAppId == appId }.sortedByDescending { it.detectedAt }
-
-        override suspend fun getLatestEventForApp(appId: Long): UpdateEvent? =
-            events.value.filter { it.trackedAppId == appId }.maxByOrNull { it.detectedAt }
-
-        override suspend fun getEventByVersion(appId: Long, version: String): UpdateEvent? =
-            events.value.find { it.trackedAppId == appId && it.detectedVersion == version }
-
-        override suspend fun insert(event: UpdateEvent): Long {
-            val id = autoId++
-            events.value = events.value + event.copy(id = id)
-            return id
-        }
-
-        override suspend fun update(event: UpdateEvent) {
-            events.value = events.value.map { if (it.id == event.id) event else it }
-        }
-
-        override fun getAllEvents(): Flow<List<UpdateEvent>> =
-            events.map { it.sortedByDescending { e -> e.detectedAt } }
     }
 }

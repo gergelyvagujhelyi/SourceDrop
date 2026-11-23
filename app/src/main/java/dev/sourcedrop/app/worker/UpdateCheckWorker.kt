@@ -5,9 +5,7 @@ import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import dev.sourcedrop.app.SourceDropApplication
-import dev.sourcedrop.app.data.local.entity.TrackedApp
-import dev.sourcedrop.app.data.local.entity.UpdateEvent
-import dev.sourcedrop.app.util.VersionComparator
+import dev.sourcedrop.app.updates.UpdateChecker
 import kotlinx.coroutines.flow.first
 
 class UpdateCheckWorker(
@@ -19,100 +17,40 @@ class UpdateCheckWorker(
         val app = applicationContext as? SourceDropApplication ?: return Result.failure()
         val container = app.container
         val preferences = container.preferences
-        val trackedAppRepo = container.trackedAppRepository
-        val updateEventRepo = container.updateEventRepository
-        val adapterFactory = container.sourceAdapterFactory
         val notificationHelper = container.notificationHelper
+        val updateChecker = container.updateChecker
 
         if (!preferences.backgroundChecksEnabled) {
             Log.d(TAG, "Background checks disabled, skipping")
             return Result.success()
         }
 
-        val apps = trackedAppRepo.getAllApps().first()
-        val enabledApps = apps.filter { it.checkEnabled }
-
+        val enabledApps = container.trackedAppRepository.getAllApps().first().filter { it.checkEnabled }
         Log.d(TAG, "Checking ${enabledApps.size} apps for updates")
 
         var hasErrors = false
-
-        val versionDetector = container.installedVersionDetector
-
         for (trackedApp in enabledApps) {
-            try {
-                // Auto-detect installed version if currentVersion is blank
-                var currentApp = trackedApp
-                if (currentApp.currentVersion.isBlank() && currentApp.packageName.isNotBlank()) {
-                    val detected = versionDetector.getInstalledVersion(currentApp.packageName)
-                    if (detected != null) {
-                        currentApp = currentApp.copy(
-                            currentVersion = detected,
-                            updatedAt = System.currentTimeMillis()
+            when (val outcome = updateChecker.check(trackedApp, automatic = true)) {
+                is UpdateChecker.Outcome.UpdateFound -> {
+                    Log.d(TAG, "${trackedApp.displayName}: update ${outcome.result.version}")
+                    if (outcome.isNew && preferences.notificationsEnabled) {
+                        notificationHelper.showUpdateNotification(
+                            appId = outcome.app.id,
+                            appName = outcome.app.displayName,
+                            newVersion = outcome.result.version,
+                            releaseNotes = outcome.result.releaseNotes
                         )
-                        trackedAppRepo.updateApp(currentApp)
                     }
                 }
-
-                val adapter = adapterFactory.create(currentApp.sourceType)
-                val result = adapter.checkForUpdate(currentApp)
-                val now = System.currentTimeMillis()
-
-                val isNewer = currentApp.currentVersion.isBlank() ||
-                    VersionComparator.isNewer(currentApp.currentVersion, result.version)
-
-                val status = if (isNewer) {
-                    TrackedApp.STATUS_UPDATE_AVAILABLE
-                } else {
-                    TrackedApp.STATUS_UP_TO_DATE
+                is UpdateChecker.Outcome.UpToDate ->
+                    Log.d(TAG, "${trackedApp.displayName}: up to date (${outcome.result.version})")
+                // Not an error: the next scheduled run tries again, after GitHub's reset.
+                is UpdateChecker.Outcome.RateLimited ->
+                    Log.d(TAG, "${trackedApp.displayName}: skipped, GitHub rate limit")
+                is UpdateChecker.Outcome.Failed -> {
+                    Log.e(TAG, "Error checking ${trackedApp.displayName}: ${outcome.error.message}")
+                    hasErrors = true
                 }
-
-                trackedAppRepo.updateApp(
-                    currentApp.copy(
-                        latestKnownVersion = result.version,
-                        lastCheckedAt = now,
-                        lastStatus = status,
-                        updatedAt = now
-                    )
-                )
-
-                if (isNewer) {
-                    val existing = updateEventRepo.getEventByVersion(
-                        currentApp.id, result.version
-                    )
-                    if (existing == null) {
-                        updateEventRepo.insertEvent(
-                            UpdateEvent(
-                                trackedAppId = currentApp.id,
-                                detectedVersion = result.version,
-                                releaseNotes = result.releaseNotes,
-                                apkUrl = result.apkUrl,
-                                detectedAt = now
-                            )
-                        )
-
-                        if (preferences.notificationsEnabled) {
-                            notificationHelper.showUpdateNotification(
-                                appId = currentApp.id,
-                                appName = currentApp.displayName,
-                                newVersion = result.version,
-                                releaseNotes = result.releaseNotes
-                            )
-                        }
-                    }
-                }
-
-                Log.d(TAG, "${currentApp.displayName}: $status (${result.version})")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error checking ${trackedApp.displayName}: ${e.message}")
-                val now = System.currentTimeMillis()
-                trackedAppRepo.updateApp(
-                    trackedApp.copy(
-                        lastCheckedAt = now,
-                        lastStatus = TrackedApp.STATUS_ERROR,
-                        updatedAt = now
-                    )
-                )
-                hasErrors = true
             }
         }
 
