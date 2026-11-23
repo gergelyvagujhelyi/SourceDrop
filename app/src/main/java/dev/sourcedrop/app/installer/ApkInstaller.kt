@@ -98,11 +98,21 @@ class ApkInstaller(private val context: Context) {
         }
     }
 
-    fun launchUninstall(packageName: String): Boolean {
+    /**
+     * Opens the system's App info page for [packageName], where the user taps Uninstall.
+     * Deliberately not ACTION_DELETE: that needs REQUEST_DELETE_PACKAGES, one more sensitive
+     * permission next to REQUEST_INSTALL_PACKAGES that makes Play Protect wary of SourceDrop.
+     */
+    fun openAppInfoToUninstall(packageName: String): Boolean {
         if (packageName.isBlank()) return false
         return try {
-            val intent = Intent(Intent.ACTION_DELETE, Uri.parse("package:$packageName")).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            val intent = Intent(
+                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.parse("package:$packageName")
+            ).apply {
+                // A task of its own: otherwise it joins whatever Settings already has open, and
+                // Back leads into those old Settings screens instead of back to SourceDrop.
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
             }
             context.startActivity(intent)
             true

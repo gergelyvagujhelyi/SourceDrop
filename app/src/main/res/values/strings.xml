@@ -42,7 +42,7 @@
 
     <!-- App Card -->
     <string name="delete_app_title">Delete %1$s?</string>
-    <string name="delete_app_installed">This will uninstall %1$s from your device, remove downloaded APKs, and delete all update history.</string>
+    <string name="delete_app_installed">Opens the App info page for %1$s: tap Uninstall there. When you come back and it\u2019s gone, its downloaded APKs and update history are deleted too.</string>
     <string name="delete_app_not_installed">%1$s is not installed on this device. This will remove downloaded APKs and delete all update history.</string>
     <string name="delete_app_no_package">This will only remove the tracking record and downloaded APKs. To also uninstall the app from your device, edit it first and set the package name.</string>
     <string name="uninstall_and_delete">Uninstall &amp; Delete</string>

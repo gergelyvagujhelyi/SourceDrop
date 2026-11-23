@@ -95,10 +95,11 @@ class AppListViewModel(
 
     fun deleteApp(id: Long, packageName: String = "") {
         viewModelScope.launch {
-            // Launch system uninstall first if the app is actually installed
+            // Installed: open its App info page to uninstall it; onResume deletes the record
+            // once the app is really gone
             if (packageName.isNotBlank() && apkInstaller.isPackageInstalled(packageName)) {
                 pendingDelete = PendingDelete(id, packageName)
-                apkInstaller.launchUninstall(packageName)
+                apkInstaller.openAppInfoToUninstall(packageName)
                 return@launch
             }
 
