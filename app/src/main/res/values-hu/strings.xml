@@ -42,7 +42,7 @@
 
     <!-- App Card -->
     <string name="delete_app_title">T\u00f6r\u00f6lj\u00fck: %1$s?</string>
-    <string name="delete_app_installed">Ez elt\u00e1vol\u00edtja a(z) %1$s alkalmaz\u00e1st az eszk\u00f6zr\u0151l, t\u00f6rli a let\u00f6lt\u00f6tt APK-kat \u00e9s a teljes friss\u00edt\u00e9si el\u0151zm\u00e9nyt.</string>
+    <string name="delete_app_installed">Megnyitja a(z) %1$s alkalmaz\u00e1sinform\u00e1ci\u00f3s oldal\u00e1t: ott koppints az Elt\u00e1vol\u00edt\u00e1sra. Ha visszat\u00e9rve m\u00e1r nincs telep\u00edtve, a let\u00f6lt\u00f6tt APK-k \u00e9s a friss\u00edt\u00e9si el\u0151zm\u00e9nyek is t\u00f6rl\u0151dnek.</string>
     <string name="delete_app_not_installed">A(z) %1$s nincs telep\u00edtve ezen az eszk\u00f6z\u00f6n. Ez t\u00f6rli a let\u00f6lt\u00f6tt APK-kat \u00e9s a teljes friss\u00edt\u00e9si el\u0151zm\u00e9nyt.</string>
     <string name="delete_app_no_package">Ez csak a k\u00f6vet\u00e9si rekordot \u00e9s a let\u00f6lt\u00f6tt APK-kat t\u00f6rli. Az alkalmaz\u00e1s elt\u00e1vol\u00edt\u00e1s\u00e1hoz el\u0151bb szerkeszd, \u00e9s add meg a csomagnevet.</string>
     <string name="uninstall_and_delete">Elt\u00e1vol\u00edt\u00e1s \u00e9s t\u00f6rl\u00e9s</string>
