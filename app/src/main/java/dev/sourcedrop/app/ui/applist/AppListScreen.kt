@@ -65,7 +65,8 @@ fun AppListScreen(
     onAddApp: () -> Unit,
     onAppClick: (Long) -> Unit,
     onDownloads: () -> Unit,
-    onSettings: () -> Unit
+    onSettings: () -> Unit,
+    canAutoRefresh: () -> Boolean = { true }
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
@@ -83,6 +84,7 @@ fun AppListScreen(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.onResume()
+                if (canAutoRefresh()) viewModel.refreshStale()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)

@@ -14,6 +14,7 @@ import dev.sourcedrop.app.util.VersionComparator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -132,60 +133,83 @@ class AppListViewModel(
 
         viewModelScope.launch {
             _refreshState.value = RefreshState(isRefreshing = true)
-            val apps = uiState.value.apps.filter { it.checkEnabled }
-            var errorCount = 0
-
-            for (app in apps) {
-                try {
-                    val adapter = adapterFactory.create(app.sourceType)
-                    val result = adapter.checkForUpdate(app)
-                    val now = System.currentTimeMillis()
-                    val isNewer = app.currentVersion.isBlank() ||
-                        VersionComparator.isNewer(app.currentVersion, result.version)
-                    val status = if (isNewer) TrackedApp.STATUS_UPDATE_AVAILABLE
-                        else TrackedApp.STATUS_UP_TO_DATE
-
-                    repository.updateApp(
-                        app.copy(
-                            latestKnownVersion = result.version,
-                            lastCheckedAt = now,
-                            lastStatus = status,
-                            updatedAt = now
-                        )
-                    )
-
-                    if (isNewer) {
-                        val existing = updateEventRepository.getEventByVersion(app.id, result.version)
-                        if (existing == null) {
-                            updateEventRepository.insertEvent(
-                                UpdateEvent(
-                                    trackedAppId = app.id,
-                                    detectedVersion = result.version,
-                                    releaseNotes = result.releaseNotes,
-                                    apkUrl = result.apkUrl,
-                                    detectedAt = now
-                                )
-                            )
-                        }
-                    }
-                } catch (e: Exception) {
-                    val now = System.currentTimeMillis()
-                    repository.updateApp(
-                        app.copy(
-                            lastCheckedAt = now,
-                            lastStatus = TrackedApp.STATUS_ERROR,
-                            updatedAt = now
-                        )
-                    )
-                    errorCount++
-                }
-            }
-
+            val errorCount = checkApps(uiState.value.apps.filter { it.checkEnabled })
             _refreshState.value = RefreshState(
                 isRefreshing = false,
                 error = if (errorCount > 0) "$errorCount app(s) failed to check" else null
             )
         }
+    }
+
+    /**
+     * Checks the apps not checked in the last [STALE_AFTER_MS], each time SourceDrop comes to
+     * the front, so an update announced elsewhere (e.g. by the app itself) shows up without a
+     * manual refresh. Quiet: failures only show as the app's error status.
+     */
+    fun refreshStale() {
+        if (_refreshState.value.isRefreshing) return
+
+        viewModelScope.launch {
+            val cutoff = System.currentTimeMillis() - STALE_AFTER_MS
+            val stale = repository.getAllApps().first()
+                .filter { it.checkEnabled && it.lastCheckedAt < cutoff }
+            if (stale.isEmpty() || _refreshState.value.isRefreshing) return@launch
+
+            _refreshState.value = RefreshState(isRefreshing = true)
+            checkApps(stale)
+            _refreshState.value = RefreshState(isRefreshing = false)
+        }
+    }
+
+    /** Checks [apps] one by one, saving each result; returns how many failed. */
+    private suspend fun checkApps(apps: List<TrackedApp>): Int {
+        var errorCount = 0
+        for (app in apps) {
+            try {
+                val adapter = adapterFactory.create(app.sourceType)
+                val result = adapter.checkForUpdate(app)
+                val now = System.currentTimeMillis()
+                val isNewer = app.currentVersion.isBlank() ||
+                    VersionComparator.isNewer(app.currentVersion, result.version)
+                val status = if (isNewer) TrackedApp.STATUS_UPDATE_AVAILABLE
+                    else TrackedApp.STATUS_UP_TO_DATE
+
+                repository.updateApp(
+                    app.copy(
+                        latestKnownVersion = result.version,
+                        lastCheckedAt = now,
+                        lastStatus = status,
+                        updatedAt = now
+                    )
+                )
+
+                if (isNewer) {
+                    val existing = updateEventRepository.getEventByVersion(app.id, result.version)
+                    if (existing == null) {
+                        updateEventRepository.insertEvent(
+                            UpdateEvent(
+                                trackedAppId = app.id,
+                                detectedVersion = result.version,
+                                releaseNotes = result.releaseNotes,
+                                apkUrl = result.apkUrl,
+                                detectedAt = now
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                val now = System.currentTimeMillis()
+                repository.updateApp(
+                    app.copy(
+                        lastCheckedAt = now,
+                        lastStatus = TrackedApp.STATUS_ERROR,
+                        updatedAt = now
+                    )
+                )
+                errorCount++
+            }
+        }
+        return errorCount
     }
 
     fun dismissError() {
@@ -198,6 +222,9 @@ class AppListViewModel(
     )
 
     companion object {
+        /** How old a check may be before [refreshStale] repeats it. */
+        const val STALE_AFTER_MS = 30 * 60 * 1000L
+
         fun factory(
             repository: TrackedAppRepository,
             updateEventRepository: UpdateEventRepository,

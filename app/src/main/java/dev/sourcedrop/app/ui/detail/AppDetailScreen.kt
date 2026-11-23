@@ -186,7 +186,9 @@ fun AppDetailScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 item { AppInfoCard(app) }
-                item { CheckNowSection(uiState.isChecking) { viewModel.checkNow() } }
+                item {
+                    CheckNowSection(uiState.isChecking, uiState.announcedVersion) { viewModel.checkNow() }
+                }
 
                 if (uiState.hasUpdate && uiState.events.firstOrNull()?.apkUrl?.isNotBlank() == true) {
                     item {
@@ -415,7 +417,7 @@ private fun StatusRow(app: TrackedApp) {
 }
 
 @Composable
-private fun CheckNowSection(isChecking: Boolean, onCheck: () -> Unit) {
+private fun CheckNowSection(isChecking: Boolean, announcedVersion: String?, onCheck: () -> Unit) {
     Button(
         onClick = onCheck,
         enabled = !isChecking,
@@ -428,7 +430,10 @@ private fun CheckNowSection(isChecking: Boolean, onCheck: () -> Unit) {
                 color = MaterialTheme.colorScheme.onPrimary
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text(stringResource(R.string.checking))
+            Text(
+                if (announcedVersion != null) stringResource(R.string.checking_for_version, announcedVersion)
+                else stringResource(R.string.checking)
+            )
         } else {
             Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(8.dp))

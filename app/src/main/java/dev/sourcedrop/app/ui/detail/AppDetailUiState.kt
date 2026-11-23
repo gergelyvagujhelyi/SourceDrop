@@ -17,7 +17,9 @@ data class AppDetailUiState(
     val downloadingEventId: Long? = null,
     val downloadProgress: Int = 0,
     val canInstallPackages: Boolean = true,
-    val showInstallPermissionDialog: Boolean = false
+    val showInstallPermissionDialog: Boolean = false,
+    /** The version the app that opened this page announced, if any (a hint only). */
+    val announcedVersion: String? = null
 ) {
     val hasUpdate: Boolean
         get() = app != null &&

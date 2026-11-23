@@ -5,13 +5,19 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import android.widget.Toast
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import dev.sourcedrop.app.OpenRequest
+import dev.sourcedrop.app.R
 import dev.sourcedrop.app.di.AppContainer
 import dev.sourcedrop.app.ui.appform.AppFormScreen
 import dev.sourcedrop.app.ui.appform.AppFormViewModel
@@ -25,11 +31,45 @@ import dev.sourcedrop.app.ui.installedapps.InstalledAppsScreen
 import dev.sourcedrop.app.ui.onboarding.OnboardingScreen
 import dev.sourcedrop.app.ui.settings.SettingsScreen
 import dev.sourcedrop.app.ui.settings.SettingsViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 
 @Composable
-fun SourceDropNavHost(container: AppContainer) {
+fun SourceDropNavHost(container: AppContainer, openRequest: MutableStateFlow<OpenRequest?>) {
     val navController = rememberNavController()
     val startDestination: Any = if (container.preferences.onboardingCompleted) AppListRoute else OnboardingRoute
+    val context = LocalContext.current
+    val request by openRequest.collectAsState()
+
+    // Another app (or our own notification) asked for a specific app: open its page.
+    LaunchedEffect(request) {
+        val pending = request ?: return@LaunchedEffect
+        if (!container.preferences.onboardingCompleted) {
+            openRequest.value = null
+            return@LaunchedEffect
+        }
+        val app = when (pending) {
+            is OpenRequest.ByAppId -> container.trackedAppRepository.getAppByIdOnce(pending.appId)
+            is OpenRequest.ByPackage -> container.trackedAppRepository.getAppByPackageName(pending.packageName)
+        }
+        if (app != null) {
+            navController.navigate(
+                AppDetailRoute(
+                    appId = app.id,
+                    autoCheck = pending is OpenRequest.ByPackage,
+                    announcedVersion = (pending as? OpenRequest.ByPackage)?.announcedVersion
+                )
+            ) {
+                popUpTo(AppListRoute)
+            }
+        } else if (pending is OpenRequest.ByPackage) {
+            Toast.makeText(
+                context,
+                context.getString(R.string.open_request_not_tracked, pending.packageName),
+                Toast.LENGTH_LONG
+            ).show()
+        }
+        openRequest.value = null
+    }
 
     NavHost(
         navController = navController,
@@ -51,7 +91,6 @@ fun SourceDropNavHost(container: AppContainer) {
         }
 
         composable<AppListRoute> {
-            val context = LocalContext.current
             val selfPackageName = context.packageName
             val selfVersion = try {
                 context.packageManager.getPackageInfo(selfPackageName, 0).versionName ?: ""
@@ -72,7 +111,9 @@ fun SourceDropNavHost(container: AppContainer) {
                 onAddApp = { navController.navigate(AddAppRoute) },
                 onAppClick = { appId -> navController.navigate(AppDetailRoute(appId)) },
                 onDownloads = { navController.navigate(DownloadsRoute) },
-                onSettings = { navController.navigate(SettingsRoute) }
+                onSettings = { navController.navigate(SettingsRoute) },
+                // Not while an app is about to be opened: its page checks it anyway.
+                canAutoRefresh = { openRequest.value == null }
             )
         }
 
@@ -89,7 +130,9 @@ fun SourceDropNavHost(container: AppContainer) {
                     container.apkVerifier,
                     container.installedVersionDetector,
                     container.appMetadataFetcher,
-                    container.notificationHelper
+                    container.notificationHelper,
+                    autoCheck = route.autoCheck,
+                    announcedVersion = route.announcedVersion
                 )
             )
             AppDetailScreen(
