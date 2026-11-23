@@ -110,7 +110,9 @@ class ApkInstaller(private val context: Context) {
                 android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                 Uri.parse("package:$packageName")
             ).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                // A task of its own: otherwise it joins whatever Settings already has open, and
+                // Back leads into those old Settings screens instead of back to SourceDrop.
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK)
             }
             context.startActivity(intent)
             true
