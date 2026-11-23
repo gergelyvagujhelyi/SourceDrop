@@ -22,7 +22,11 @@ data class TrackedApp(
     val checkIntervalHours: Int = 12,
     val includePreReleases: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    /** GitHub only: the newest tag in the releases feed at the last full API check. */
+    val feedTopTag: String = "",
+    /** GitHub only: when the API was last actually asked (epoch ms); see UpdateChecker. */
+    val lastFullCheckAt: Long = 0
 ) {
     companion object {
         const val SOURCE_TYPE_GITHUB = "github"

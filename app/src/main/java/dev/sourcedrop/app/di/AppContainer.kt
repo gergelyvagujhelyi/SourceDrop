@@ -12,6 +12,7 @@ import dev.sourcedrop.app.notifications.NotificationHelper
 import dev.sourcedrop.app.sourceadapters.AppMetadataFetcher
 import dev.sourcedrop.app.sourceadapters.SourceAdapterFactory
 import dev.sourcedrop.app.updates.GitHubRateLimit
+import dev.sourcedrop.app.updates.GitHubReleaseFeed
 import dev.sourcedrop.app.updates.InstalledVersionSync
 import dev.sourcedrop.app.updates.UpdateChecker
 import dev.sourcedrop.app.util.InstalledVersionDetector
@@ -95,7 +96,8 @@ class AppContainer(context: Context) {
             eventRepository = updateEventRepository,
             adapterFactory = sourceAdapterFactory,
             versionSync = installedVersionSync,
-            githubRateLimit = githubRateLimit
+            githubRateLimit = githubRateLimit,
+            releaseFeed = GitHubReleaseFeed(httpClient)
         )
     }
 }

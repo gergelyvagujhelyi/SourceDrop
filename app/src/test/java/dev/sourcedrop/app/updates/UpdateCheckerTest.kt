@@ -1,6 +1,7 @@
 package dev.sourcedrop.app.updates
 
 import dev.sourcedrop.app.data.local.entity.TrackedApp
+import dev.sourcedrop.app.data.local.entity.UpdateEvent
 import dev.sourcedrop.app.data.repository.TrackedAppRepository
 import dev.sourcedrop.app.data.repository.UpdateEventRepository
 import dev.sourcedrop.app.sourceadapters.AdapterError
@@ -53,8 +54,12 @@ class UpdateCheckerTest {
             ioDispatcher = UnconfinedTestDispatcher(testScheduler)
         ),
         githubRateLimit = rateLimit,
+        releaseFeed = { feedTag },
         clock = { now }
     )
+
+    /** What the releases feed shows as newest; null = feed unavailable. */
+    private var feedTag: String? = null
 
     private suspend fun insert(
         current: String = "1.0.0",
@@ -218,5 +223,168 @@ class UpdateCheckerTest {
         val outcome = checker().check(app, automatic = true)
 
         assertTrue(outcome is UpdateChecker.Outcome.UpdateFound)
+    }
+
+    // ---- Releases feed: skipping the API when nothing changed ----
+
+    /** An app whose last full check (an hour ago) saw [tag] at the top of the feed. */
+    private suspend fun checkedRecently(
+        tag: String = "v2.0.0",
+        current: String = "2.0.0",
+        latest: String = "2.0.0",
+        status: String = TrackedApp.STATUS_UP_TO_DATE
+    ): TrackedApp {
+        val app = insert(current = current, status = status)
+        val checked = app.copy(
+            latestKnownVersion = latest,
+            feedTopTag = tag,
+            lastFullCheckAt = now - 3_600_000
+        )
+        repository.updateApp(checked)
+        return checked
+    }
+
+    @Test
+    fun `full check remembers the feed's newest tag`() = runTest {
+        val app = insert()
+        feedTag = "v2.0.0"
+
+        checker().check(app, automatic = true)
+
+        val saved = appDao.getByIdOnce(app.id)!!
+        assertEquals("v2.0.0", saved.feedTopTag)
+        assertEquals(now, saved.lastFullCheckAt)
+        assertEquals(1, sourceCalls)
+    }
+
+    @Test
+    fun `nothing new in the feed skips the API`() = runTest {
+        val app = checkedRecently()
+        feedTag = "v2.0.0"
+
+        val outcome = checker().check(app, automatic = true)
+
+        assertTrue(outcome is UpdateChecker.Outcome.Unchanged)
+        assertEquals(0, sourceCalls)
+        val saved = appDao.getByIdOnce(app.id)!!
+        assertEquals("counts as checked", now, saved.lastCheckedAt)
+        assertEquals("but not as a full check", now - 3_600_000, saved.lastFullCheckAt)
+        assertEquals(TrackedApp.STATUS_UP_TO_DATE, saved.lastStatus)
+    }
+
+    @Test
+    fun `new tag in the feed asks the API`() = runTest {
+        val app = checkedRecently()
+        feedTag = "v2.1.0-beta" // e.g. a pre-release the app ignores: one call, then remembered
+        answer = { AdapterResult(version = "2.0.0") }
+
+        assertTrue(checker().check(app, automatic = true) is UpdateChecker.Outcome.UpToDate)
+        assertEquals(1, sourceCalls)
+
+        val saved = appDao.getByIdOnce(app.id)!!
+        assertEquals("v2.1.0-beta", saved.feedTopTag)
+        assertTrue(checker().check(saved, automatic = true) is UpdateChecker.Outcome.Unchanged)
+        assertEquals(1, sourceCalls)
+    }
+
+    @Test
+    fun `feed unavailable asks the API and forgets the tag`() = runTest {
+        val app = checkedRecently()
+        feedTag = null
+
+        checker().check(app, automatic = true)
+
+        assertEquals(1, sourceCalls)
+        assertEquals("", appDao.getByIdOnce(app.id)!!.feedTopTag)
+    }
+
+    @Test
+    fun `asking the user always goes to the API`() = runTest {
+        val app = checkedRecently()
+        feedTag = "v2.0.0"
+
+        checker().check(app, automatic = false)
+
+        assertEquals(1, sourceCalls)
+    }
+
+    @Test
+    fun `a day after the last full check the API is asked anyway`() = runTest {
+        val app = checkedRecently()
+        repository.updateApp(app.copy(lastFullCheckAt = now - UpdateChecker.FULL_CHECK_INTERVAL_MS))
+        feedTag = "v2.0.0"
+
+        checker().check(appDao.getByIdOnce(app.id)!!, automatic = true)
+
+        assertEquals(1, sourceCalls)
+    }
+
+    @Test
+    fun `never fully checked asks the API`() = runTest {
+        val app = insert() // feedTopTag blank
+        feedTag = "v2.0.0"
+
+        checker().check(app, automatic = true)
+
+        assertEquals(1, sourceCalls)
+    }
+
+    @Test
+    fun `an error status asks the API`() = runTest {
+        val app = checkedRecently(status = TrackedApp.STATUS_ERROR)
+        feedTag = "v2.0.0"
+
+        checker().check(app, automatic = true)
+
+        assertEquals(1, sourceCalls)
+    }
+
+    @Test
+    fun `update waiting without an APK link asks the API`() = runTest {
+        val app = checkedRecently(current = "1.0.0", latest = "2.0.0", status = TrackedApp.STATUS_UPDATE_AVAILABLE)
+        eventDao.insert(UpdateEvent(trackedAppId = app.id, detectedVersion = "2.0.0", apkUrl = ""))
+        feedTag = "v2.0.0"
+
+        checker().check(app, automatic = true)
+
+        assertEquals(1, sourceCalls)
+    }
+
+    @Test
+    fun `update waiting with its APK link known skips the API`() = runTest {
+        val app = checkedRecently(current = "1.0.0", latest = "2.0.0", status = TrackedApp.STATUS_UPDATE_AVAILABLE)
+        eventDao.insert(UpdateEvent(trackedAppId = app.id, detectedVersion = "2.0.0", apkUrl = "https://x/a.apk"))
+        feedTag = "v2.0.0"
+
+        val outcome = checker().check(app, automatic = true)
+
+        assertTrue(outcome is UpdateChecker.Outcome.Unchanged)
+        assertEquals(0, sourceCalls)
+        assertEquals(TrackedApp.STATUS_UPDATE_AVAILABLE, appDao.getByIdOnce(app.id)!!.lastStatus)
+    }
+
+    @Test
+    fun `the feed still works while GitHub's API refuses`() = runTest {
+        val app = checkedRecently()
+        blockGitHub()
+        feedTag = "v2.0.0"
+
+        assertTrue(checker().check(app, automatic = true) is UpdateChecker.Outcome.Unchanged)
+
+        feedTag = "v2.1.0"
+        assertTrue(checker().check(app, automatic = true) is UpdateChecker.Outcome.RateLimited)
+        assertEquals(0, sourceCalls)
+    }
+
+    @Test
+    fun `other sources don't use the feed`() = runTest {
+        val app = insert(sourceType = TrackedApp.SOURCE_TYPE_GITLAB)
+        repository.updateApp(app.copy(feedTopTag = "x", lastFullCheckAt = now - 1000))
+        feedTag = "x"
+
+        checker().check(appDao.getByIdOnce(app.id)!!, automatic = true)
+
+        assertEquals(1, sourceCalls)
+        assertEquals("untouched", "x", appDao.getByIdOnce(app.id)!!.feedTopTag)
     }
 }

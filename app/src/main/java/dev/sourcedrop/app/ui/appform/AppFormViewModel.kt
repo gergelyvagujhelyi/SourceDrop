@@ -282,7 +282,10 @@ class AppFormViewModel(
                 currentVersion = state.currentVersion.trim(),
                 checkIntervalHours = state.checkIntervalHours,
                 includePreReleases = state.includePreReleases,
-                updatedAt = now
+                updatedAt = now,
+                // The source or how it's read may have changed: next check asks the API.
+                feedTopTag = "",
+                lastFullCheckAt = 0
             ) ?: run {
                 val selectedVersion = state.availableVersions.getOrNull(state.selectedVersionIndex)
                 val latestVersion = state.availableVersions.firstOrNull()?.version ?: state.currentVersion.trim()
