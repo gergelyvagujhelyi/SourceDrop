@@ -38,6 +38,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -428,7 +429,9 @@ private fun CheckNowSection(isChecking: Boolean, announcedVersion: String?, onCh
             CircularProgressIndicator(
                 modifier = Modifier.size(18.dp),
                 strokeWidth = 2.dp,
-                color = MaterialTheme.colorScheme.onPrimary
+                // The button's own (disabled) content color, like the text next to it;
+                // onPrimary was nearly invisible on the greyed-out button.
+                color = LocalContentColor.current
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
