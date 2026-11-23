@@ -71,7 +71,10 @@ class AppListViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private val versionSync by lazy { InstalledVersionSync(appRepository, installedVersionOf = { null }) }
+    // Same dispatcher as the test, so advanceUntilIdle() also waits for the installed-version lookups.
+    private val versionSync by lazy {
+        InstalledVersionSync(appRepository, installedVersionOf = { null }, ioDispatcher = testDispatcher)
+    }
 
     private fun createViewModel(
         selfPackageName: String = "dev.sourcedrop.app",
