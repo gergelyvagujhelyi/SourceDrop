@@ -212,7 +212,8 @@ class AppFormViewModel(
                     // For non-GitHub/GitLab sources, go to step 2 with no versions
                     _uiState.update { it.copy(step = 2, isFetching = false) }
                 }
-            } catch (e: AdapterError.RateLimitError) {
+            } catch (e: AdapterError) {
+                // Already says what went wrong and what to do (rate limit, unreachable, not found).
                 _uiState.update {
                     it.copy(isFetching = false, fetchError = e.message)
                 }

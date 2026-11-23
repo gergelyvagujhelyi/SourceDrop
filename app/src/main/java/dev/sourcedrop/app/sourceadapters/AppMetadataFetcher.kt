@@ -32,8 +32,26 @@ data class ReleaseVersion(
 class AppMetadataFetcher(
     private val client: OkHttpClient,
     private val apiTokenProvider: () -> String = { "" },
-    private val rateLimit: GitHubRateLimit? = null
+    private val rateLimit: GitHubRateLimit? = null,
+    private val githubApiBase: String = "https://api.github.com"
 ) {
+
+    // Lookups for the Add app screen. Real failures (no connection, server errors, unreadable
+    // replies) are thrown, so the screen shows them and Next can try again; otherwise a failed
+    // lookup looked like an app with no package name and no releases. A 404 for one of the
+    // build files tried is normal and isn't a failure.
+
+    private fun unreachable(service: String, e: Exception) = AdapterError.NetworkError(
+        "Couldn't reach $service (${e.message ?: e.javaClass.simpleName}). " +
+            "Check your connection and tap Next to try again.", e
+    )
+
+    private fun badReply(service: String, code: Int) = AdapterError.NetworkError(
+        "$service couldn't be read right now (HTTP $code). Tap Next to try again."
+    )
+
+    private fun unexpectedReply(service: String) =
+        AdapterError.ParseError("$service sent an unexpected reply. Tap Next to try again.")
 
     /** Records this GitHub response's rate-limit headers; true if GitHub refused because of the limit. */
     private fun Response.githubLimited(): Boolean =
@@ -77,20 +95,27 @@ class AppMetadataFetcher(
     }
 
     private fun fetchGitHubVersions(owner: String, repo: String): List<ReleaseVersion> {
-        val request = githubRequest("https://api.github.com/repos/$owner/$repo/releases")
-        val response = try { client.newCall(request).execute() } catch (_: Exception) { return emptyList() }
+        val request = githubRequest("$githubApiBase/repos/$owner/$repo/releases")
+        val response = try { client.newCall(request).execute() } catch (e: Exception) { throw unreachable("GitHub", e) }
         val limited = response.githubLimited()
         if (!response.isSuccessful) {
+            val code = response.code
             val resetHeader = response.header("x-ratelimit-reset")
             response.close()
             if (limited) {
                 val resetInfo = formatResetTime(resetHeader)
                 throw AdapterError.RateLimitError("GitHub API rate limit exceeded. Resets $resetInfo")
             }
-            return emptyList()
+            if (code == 404) {
+                throw AdapterError.NotFoundError(
+                    "Repository not found: $owner/$repo. Check the URL; private repositories " +
+                        "need an API token in Settings."
+                )
+            }
+            throw badReply("GitHub", code)
         }
-        val body = response.boundedBody()
-        response.close()
+        val body = try { response.boundedBody() } catch (e: Exception) { throw unreachable("GitHub", e) }
+            finally { response.close() }
 
         return try {
             val releases = json.parseToJsonElement(body).jsonArray
@@ -112,7 +137,7 @@ class AppMetadataFetcher(
                 ReleaseVersion(tagName = tagName, version = version, apkUrl = apkUrl, releaseNotes = releaseNotes, isPreRelease = isPreRelease)
             }
         } catch (e: AdapterError.RateLimitError) { throw e }
-        catch (_: Exception) { emptyList() }
+        catch (_: Exception) { throw unexpectedReply("GitHub") }
     }
 
     private fun fetchGitLabVersions(host: String, projectPath: String): List<ReleaseVersion> {
@@ -122,10 +147,15 @@ class AppMetadataFetcher(
         val request = Request.Builder()
             .url(apiUrl)
             .build()
-        val response = try { client.newCall(request).execute() } catch (_: Exception) { return emptyList() }
-        if (!response.isSuccessful) { response.close(); return emptyList() }
-        val body = response.boundedBody()
-        response.close()
+        val response = try { client.newCall(request).execute() } catch (e: Exception) { throw unreachable(host, e) }
+        if (!response.isSuccessful) {
+            val code = response.code
+            response.close()
+            if (code == 404) throw AdapterError.NotFoundError("Project not found: $projectPath on $host. Check the URL.")
+            throw badReply(host, code)
+        }
+        val body = try { response.boundedBody() } catch (e: Exception) { throw unreachable(host, e) }
+            finally { response.close() }
 
         return try {
             val releases = json.parseToJsonElement(body).jsonArray
@@ -136,7 +166,7 @@ class AppMetadataFetcher(
                 val releaseNotes = release["description"]?.jsonPrimitive?.content ?: ""
                 ReleaseVersion(tagName = tagName, version = version, releaseNotes = releaseNotes)
             }
-        } catch (_: Exception) { emptyList() }
+        } catch (_: Exception) { throw unexpectedReply(host) }
     }
 
     private data class ProjectInfo(val packageName: String?, val appName: String?)
@@ -151,11 +181,12 @@ class AppMetadataFetcher(
         )
         var packageName: String? = null
         var stringsPath: String? = null
+        var failure: AdapterError? = null
 
         for ((gradlePath, resPath) in modules) {
             try {
                 val request = githubRequest(
-                    "https://api.github.com/repos/$owner/$repo/contents/$gradlePath",
+                    "$githubApiBase/repos/$owner/$repo/contents/$gradlePath",
                     "application/vnd.github.raw+json"
                 )
                 val response = client.newCall(request).execute()
@@ -170,22 +201,29 @@ class AppMetadataFetcher(
                         break
                     }
                 } else {
+                    val code = response.code
                     val resetHeader = response.header("x-ratelimit-reset")
                     response.close()
                     if (limited) {
                         throw AdapterError.RateLimitError("GitHub API rate limit exceeded. Resets ${formatResetTime(resetHeader)}")
                     }
+                    if (code != 404) failure = badReply("GitHub", code)
                 }
             } catch (e: AdapterError.RateLimitError) { throw e }
-            catch (_: Exception) {
+            catch (e: Exception) {
+                // No connection: the other paths would fail the same way.
+                failure = unreachable("GitHub", e)
+                break
             }
         }
+        // Only a failure if the package name couldn't be found because of it.
+        if (packageName == null) failure?.let { throw it }
 
         var appName: String? = null
         if (stringsPath != null) {
             try {
                 val request = githubRequest(
-                    "https://api.github.com/repos/$owner/$repo/contents/$stringsPath",
+                    "$githubApiBase/repos/$owner/$repo/contents/$stringsPath",
                     "application/vnd.github.raw+json"
                 )
                 val response = client.newCall(request).execute()
@@ -220,6 +258,7 @@ class AppMetadataFetcher(
         )
         var packageName: String? = null
         var stringsPath: String? = null
+        var failure: AdapterError? = null
 
         for ((gradlePath, resPath) in modules) {
             try {
@@ -237,11 +276,16 @@ class AppMetadataFetcher(
                         break
                     }
                 } else {
+                    val code = response.code
                     response.close()
+                    if (code != 404) failure = badReply(host, code)
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                failure = unreachable(host, e)
+                break
             }
         }
+        if (packageName == null) failure?.let { throw it }
 
         var appName: String? = null
         if (stringsPath != null) {
@@ -295,11 +339,12 @@ class AppMetadataFetcher(
     }
 
     companion object {
+        // Kotlin `applicationId = "x"`, `applicationId("x")`, and Groovy `applicationId 'x'`.
         private val APPLICATION_ID_REGEX = Regex(
-            """applicationId\s*[=(]\s*["']([^"']+)["']"""
+            """\bapplicationId\s*[=(]?\s*["']([^"']+)["']"""
         )
         private val NAMESPACE_REGEX = Regex(
-            """namespace\s*[=(]\s*["']([^"']+)["']"""
+            """\bnamespace\s*[=(]?\s*["']([^"']+)["']"""
         )
         private val APP_NAME_REGEX = Regex(
             """<string\s+name\s*=\s*"app_name"\s*>([^<]+)</string>"""
