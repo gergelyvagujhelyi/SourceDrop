@@ -83,8 +83,7 @@ fun AppListScreen(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                viewModel.onResume()
-                if (canAutoRefresh()) viewModel.refreshStale()
+                viewModel.onResume(autoRefresh = canAutoRefresh())
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)

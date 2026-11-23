@@ -91,7 +91,8 @@ fun AppDetailScreen(
         uiState.checkError?.let { error ->
             if (error.contains("rate limit", ignoreCase = true)) {
                 val result = snackbarHostState.showSnackbar(
-                    message = context.getString(R.string.rate_limit_go_to_settings),
+                    // Keep the error itself: it may say when to try again.
+                    message = "$error. ${context.getString(R.string.rate_limit_add_token)}",
                     actionLabel = context.getString(R.string.go_to_settings)
                 )
                 if (result == androidx.compose.material3.SnackbarResult.ActionPerformed) {

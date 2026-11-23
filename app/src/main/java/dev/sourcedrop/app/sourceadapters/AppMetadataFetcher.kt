@@ -1,5 +1,6 @@
 package dev.sourcedrop.app.sourceadapters
 
+import dev.sourcedrop.app.updates.GitHubRateLimit
 import dev.sourcedrop.app.util.UrlValidator
 import dev.sourcedrop.app.util.boundedBody
 import kotlinx.coroutines.Dispatchers
@@ -11,6 +12,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.Response
 import java.net.URLEncoder
 
 data class AppMetadata(
@@ -29,8 +31,17 @@ data class ReleaseVersion(
 
 class AppMetadataFetcher(
     private val client: OkHttpClient,
-    private val apiTokenProvider: () -> String = { "" }
+    private val apiTokenProvider: () -> String = { "" },
+    private val rateLimit: GitHubRateLimit? = null
 ) {
+
+    /** Records this GitHub response's rate-limit headers; true if GitHub refused because of the limit. */
+    private fun Response.githubLimited(): Boolean =
+        rateLimit?.record(code) { header(it) } ?: GitHubRateLimit.isRateLimited(
+            code,
+            header("x-ratelimit-remaining")?.trim()?.toIntOrNull(),
+            header("retry-after")?.trim()?.toLongOrNull()
+        )
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -68,11 +79,11 @@ class AppMetadataFetcher(
     private fun fetchGitHubVersions(owner: String, repo: String): List<ReleaseVersion> {
         val request = githubRequest("https://api.github.com/repos/$owner/$repo/releases")
         val response = try { client.newCall(request).execute() } catch (_: Exception) { return emptyList() }
+        val limited = response.githubLimited()
         if (!response.isSuccessful) {
-            val code = response.code
             val resetHeader = response.header("x-ratelimit-reset")
             response.close()
-            if (code == 403 || code == 429) {
+            if (limited) {
                 val resetInfo = formatResetTime(resetHeader)
                 throw AdapterError.RateLimitError("GitHub API rate limit exceeded. Resets $resetInfo")
             }
@@ -148,6 +159,7 @@ class AppMetadataFetcher(
                     "application/vnd.github.raw+json"
                 )
                 val response = client.newCall(request).execute()
+                val limited = response.githubLimited()
                 if (response.isSuccessful) {
                     val content = response.boundedBody()
                     response.close()
@@ -158,10 +170,9 @@ class AppMetadataFetcher(
                         break
                     }
                 } else {
-                    val code = response.code
                     val resetHeader = response.header("x-ratelimit-reset")
                     response.close()
-                    if (code == 403 || code == 429) {
+                    if (limited) {
                         throw AdapterError.RateLimitError("GitHub API rate limit exceeded. Resets ${formatResetTime(resetHeader)}")
                     }
                 }
@@ -178,15 +189,15 @@ class AppMetadataFetcher(
                     "application/vnd.github.raw+json"
                 )
                 val response = client.newCall(request).execute()
+                val limited = response.githubLimited()
                 if (response.isSuccessful) {
                     val content = response.boundedBody()
                     response.close()
                     appName = extractAppName(content)
                 } else {
-                    val code = response.code
                     val resetHeader = response.header("x-ratelimit-reset")
                     response.close()
-                    if (code == 403 || code == 429) {
+                    if (limited) {
                         throw AdapterError.RateLimitError("GitHub API rate limit exceeded. Resets ${formatResetTime(resetHeader)}")
                     }
                 }

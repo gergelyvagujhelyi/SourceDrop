@@ -11,6 +11,9 @@ import dev.sourcedrop.app.installer.ApkVerifier
 import dev.sourcedrop.app.notifications.NotificationHelper
 import dev.sourcedrop.app.sourceadapters.AppMetadataFetcher
 import dev.sourcedrop.app.sourceadapters.SourceAdapterFactory
+import dev.sourcedrop.app.updates.GitHubRateLimit
+import dev.sourcedrop.app.updates.InstalledVersionSync
+import dev.sourcedrop.app.updates.UpdateChecker
 import dev.sourcedrop.app.util.InstalledVersionDetector
 import dev.sourcedrop.app.worker.WorkScheduler
 import okhttp3.ConnectionSpec
@@ -63,14 +66,36 @@ class AppContainer(context: Context) {
     }
 
     val sourceAdapterFactory: SourceAdapterFactory by lazy {
-        SourceAdapterFactory(httpClient, preferences)
+        SourceAdapterFactory(httpClient, preferences, githubRateLimit)
     }
 
     val appMetadataFetcher: AppMetadataFetcher by lazy {
-        AppMetadataFetcher(httpClient) { preferences.githubApiToken }
+        AppMetadataFetcher(httpClient, { preferences.githubApiToken }, githubRateLimit)
     }
 
     val installedVersionDetector: InstalledVersionDetector by lazy {
         InstalledVersionDetector(context)
+    }
+
+    val githubRateLimit: GitHubRateLimit by lazy {
+        GitHubRateLimit(preferences.githubRateLimitStore, { preferences.githubApiToken })
+    }
+
+    val installedVersionSync: InstalledVersionSync by lazy {
+        InstalledVersionSync(
+            repository = trackedAppRepository,
+            installedVersionOf = installedVersionDetector::getInstalledVersion,
+            onCaughtUp = notificationHelper::cancelUpdateNotification
+        )
+    }
+
+    val updateChecker: UpdateChecker by lazy {
+        UpdateChecker(
+            repository = trackedAppRepository,
+            eventRepository = updateEventRepository,
+            adapterFactory = sourceAdapterFactory,
+            versionSync = installedVersionSync,
+            githubRateLimit = githubRateLimit
+        )
     }
 }

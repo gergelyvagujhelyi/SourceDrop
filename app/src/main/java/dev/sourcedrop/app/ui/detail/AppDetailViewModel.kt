@@ -19,7 +19,9 @@ import dev.sourcedrop.app.sourceadapters.AppMetadataFetcher
 import dev.sourcedrop.app.sourceadapters.GitHubAdapter
 import dev.sourcedrop.app.sourceadapters.GitLabAdapter
 import dev.sourcedrop.app.sourceadapters.ReleaseVersion
-import dev.sourcedrop.app.sourceadapters.SourceAdapterFactory
+import dev.sourcedrop.app.updates.InstalledVersionSync
+import dev.sourcedrop.app.updates.UpdateChecker
+import dev.sourcedrop.app.util.formatTime
 import dev.sourcedrop.app.util.VersionComparator
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,11 +35,11 @@ class AppDetailViewModel(
     private val appId: Long,
     private val trackedAppRepository: TrackedAppRepository,
     private val updateEventRepository: UpdateEventRepository,
-    private val adapterFactory: SourceAdapterFactory,
+    private val updateChecker: UpdateChecker,
+    private val versionSync: InstalledVersionSync,
     private val apkDownloader: ApkDownloader,
     private val apkInstaller: ApkInstaller,
     private val apkVerifier: ApkVerifier,
-    private val installedVersionDetector: dev.sourcedrop.app.util.InstalledVersionDetector,
     private val appMetadataFetcher: AppMetadataFetcher,
     private val notificationHelper: NotificationHelper,
     autoCheck: Boolean = false,
@@ -149,82 +151,37 @@ class AppDetailViewModel(
     }
 
     fun checkNow() {
-        var app = _uiState.value.app ?: return
+        val app = _uiState.value.app ?: return
         if (_uiState.value.isChecking) return
 
         viewModelScope.launch {
             _uiState.update { it.copy(isChecking = true, checkError = null, checkSuccess = null) }
 
-            // Auto-detect installed version from device if currentVersion is blank
-            if (app.currentVersion.isBlank() && app.packageName.isNotBlank()) {
-                val detected = installedVersionDetector.getInstalledVersion(app.packageName)
-                if (detected != null) {
-                    app = app.copy(currentVersion = detected, updatedAt = System.currentTimeMillis())
-                    trackedAppRepository.updateApp(app)
-                }
-            }
-
-            try {
-                val adapter = adapterFactory.create(app.sourceType)
-                val result = adapter.checkForUpdate(app)
-
-                val now = System.currentTimeMillis()
-                val isNewer = app.currentVersion.isBlank() ||
-                    VersionComparator.isNewer(app.currentVersion, result.version)
-
-                val status = if (isNewer) {
-                    TrackedApp.STATUS_UPDATE_AVAILABLE
-                } else {
-                    TrackedApp.STATUS_UP_TO_DATE
-                }
-
-                trackedAppRepository.updateApp(
-                    app.copy(
-                        latestKnownVersion = result.version,
-                        lastCheckedAt = now,
-                        lastStatus = status,
-                        updatedAt = now
-                    )
-                )
-
-                if (isNewer) {
-                    val existing = updateEventRepository.getEventByVersion(app.id, result.version)
-                    if (existing == null) {
-                        updateEventRepository.insertEvent(
-                            UpdateEvent(
-                                trackedAppId = app.id,
-                                detectedVersion = result.version,
-                                releaseNotes = result.releaseNotes,
-                                apkUrl = result.apkUrl,
-                                detectedAt = now
-                            )
-                        )
+            when (val outcome = updateChecker.check(app, automatic = false)) {
+                is UpdateChecker.Outcome.UpdateFound,
+                is UpdateChecker.Outcome.UpToDate -> {
+                    val found = (outcome as? UpdateChecker.Outcome.UpdateFound)?.result
+                        ?: (outcome as UpdateChecker.Outcome.UpToDate).result
+                    val announced = announcedVersion
+                    val message = when {
+                        announced != null && VersionComparator.isNewer(found.version, announced) ->
+                            "${app.displayName} $announced was announced, but the source still " +
+                                "lists ${found.version}. Try again in a few minutes."
+                        outcome is UpdateChecker.Outcome.UpdateFound -> "Update found: ${found.version}"
+                        else -> "Up to date (${found.version})"
                     }
+                    _uiState.update { it.copy(isChecking = false, checkSuccess = message) }
                 }
-
-                val announced = announcedVersion
-                val message = when {
-                    announced != null && VersionComparator.isNewer(result.version, announced) ->
-                        "${app.displayName} $announced was announced, but the source still " +
-                            "lists ${result.version}. Try again in a few minutes."
-                    isNewer -> "Update found: ${result.version}"
-                    else -> "Up to date (${result.version})"
+                is UpdateChecker.Outcome.RateLimited -> {
+                    val message = "GitHub rate limit reached" +
+                        (outcome.until?.let { ". Try again after ${formatTime(it)}" } ?: "")
+                    _uiState.update { it.copy(isChecking = false, checkError = message) }
                 }
-                _uiState.update { it.copy(isChecking = false, checkSuccess = message) }
-
-            } catch (e: AdapterError) {
-                val now = System.currentTimeMillis()
-                trackedAppRepository.updateApp(
-                    app.copy(
-                        lastCheckedAt = now,
-                        lastStatus = TrackedApp.STATUS_ERROR,
-                        updatedAt = now
-                    )
-                )
-                _uiState.update { it.copy(isChecking = false, checkError = e.message) }
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(isChecking = false, checkError = "Unexpected error: ${e.message}")
+                is UpdateChecker.Outcome.Failed -> {
+                    val error = outcome.error
+                    val message = if (error is AdapterError) error.message
+                        else "Unexpected error: ${error.message}"
+                    _uiState.update { it.copy(isChecking = false, checkError = message) }
                 }
             }
         }
@@ -347,31 +304,10 @@ class AppDetailViewModel(
         }
     }
 
+    /** Back on this page (e.g. from the system installer): match the installed version. */
     fun verifyInstallation() {
-        viewModelScope.launch {
-            val app = _uiState.value.app ?: return@launch
-            if (app.packageName.isBlank()) return@launch
-
-            val installedVersion = installedVersionDetector.getInstalledVersion(app.packageName)
-                ?: return@launch
-
-            if (installedVersion != app.currentVersion) {
-                val now = System.currentTimeMillis()
-                val isLatest = installedVersion == app.latestKnownVersion ||
-                    VersionComparator.isNewer(app.latestKnownVersion, installedVersion) ||
-                    installedVersion == app.latestKnownVersion
-                trackedAppRepository.updateApp(
-                    app.copy(
-                        currentVersion = installedVersion,
-                        lastStatus = if (isLatest) TrackedApp.STATUS_UP_TO_DATE else app.lastStatus,
-                        updatedAt = now
-                    )
-                )
-                if (isLatest) {
-                    notificationHelper.cancelUpdateNotification(app.id)
-                }
-            }
-        }
+        val app = _uiState.value.app ?: return
+        viewModelScope.launch { versionSync.sync(app) }
     }
 
     fun getInstallPermissionIntent() = apkInstaller.createInstallPermissionIntent()
@@ -414,11 +350,11 @@ class AppDetailViewModel(
             appId: Long,
             trackedAppRepository: TrackedAppRepository,
             updateEventRepository: UpdateEventRepository,
-            adapterFactory: SourceAdapterFactory,
+            updateChecker: UpdateChecker,
+            versionSync: InstalledVersionSync,
             apkDownloader: ApkDownloader,
             apkInstaller: ApkInstaller,
             apkVerifier: ApkVerifier,
-            installedVersionDetector: dev.sourcedrop.app.util.InstalledVersionDetector,
             appMetadataFetcher: AppMetadataFetcher,
             notificationHelper: NotificationHelper,
             autoCheck: Boolean = false,
@@ -429,8 +365,8 @@ class AppDetailViewModel(
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     return AppDetailViewModel(
                         appId, trackedAppRepository, updateEventRepository,
-                        adapterFactory, apkDownloader, apkInstaller, apkVerifier,
-                        installedVersionDetector, appMetadataFetcher, notificationHelper,
+                        updateChecker, versionSync, apkDownloader, apkInstaller, apkVerifier,
+                        appMetadataFetcher, notificationHelper,
                         autoCheck, announcedVersion
                     ) as T
                 }

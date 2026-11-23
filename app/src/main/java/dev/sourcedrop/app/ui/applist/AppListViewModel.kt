@@ -9,8 +9,10 @@ import dev.sourcedrop.app.data.repository.TrackedAppRepository
 import dev.sourcedrop.app.data.repository.UpdateEventRepository
 import dev.sourcedrop.app.downloader.ApkDownloader
 import dev.sourcedrop.app.installer.ApkInstaller
-import dev.sourcedrop.app.sourceadapters.SourceAdapterFactory
-import dev.sourcedrop.app.util.VersionComparator
+import dev.sourcedrop.app.updates.InstalledVersionSync
+import dev.sourcedrop.app.updates.UpdateChecker
+import dev.sourcedrop.app.util.formatTime
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
@@ -21,7 +23,8 @@ import kotlinx.coroutines.launch
 class AppListViewModel(
     private val repository: TrackedAppRepository,
     private val updateEventRepository: UpdateEventRepository,
-    private val adapterFactory: SourceAdapterFactory,
+    private val updateChecker: UpdateChecker,
+    private val versionSync: InstalledVersionSync,
     private val apkDownloader: ApkDownloader,
     private val apkInstaller: ApkInstaller,
     private val selfPackageName: String,
@@ -103,17 +106,29 @@ class AppListViewModel(
         }
     }
 
-    fun onResume() {
-        val pending = pendingDelete ?: return
-        pendingDelete = null
-
-        viewModelScope.launch {
-            // Only delete the record if the package was actually uninstalled
-            if (!apkInstaller.isPackageInstalled(pending.packageName)) {
-                finishDelete(pending.appId)
+    /**
+     * The list came to the front: finish a pending delete, bring installed versions in line
+     * with the phone, and (if [autoRefresh]) quietly re-check apps not checked recently.
+     */
+    fun onResume(autoRefresh: Boolean = true) {
+        pendingDelete?.let { pending ->
+            pendingDelete = null
+            viewModelScope.launch {
+                // Only delete the record if the package was actually uninstalled
+                if (!apkInstaller.isPackageInstalled(pending.packageName)) {
+                    finishDelete(pending.appId)
+                }
             }
         }
+
+        if (resumeJob?.isActive == true) return
+        resumeJob = viewModelScope.launch {
+            versionSync.syncAll(repository.getAllApps().first())
+            if (autoRefresh) refreshStale()
+        }
     }
+
+    private var resumeJob: Job? = null
 
     private suspend fun finishDelete(id: Long) {
         // Clean up downloaded APK files for this app
@@ -133,83 +148,56 @@ class AppListViewModel(
 
         viewModelScope.launch {
             _refreshState.value = RefreshState(isRefreshing = true)
-            val errorCount = checkApps(uiState.value.apps.filter { it.checkEnabled })
-            _refreshState.value = RefreshState(
-                isRefreshing = false,
-                error = if (errorCount > 0) "$errorCount app(s) failed to check" else null
-            )
+            val summary = checkApps(uiState.value.apps.filter { it.checkEnabled }, automatic = false)
+            _refreshState.value = RefreshState(isRefreshing = false, error = summary.message())
         }
     }
 
     /**
-     * Checks the apps not checked in the last [STALE_AFTER_MS], each time SourceDrop comes to
-     * the front, so an update announced elsewhere (e.g. by the app itself) shows up without a
-     * manual refresh. Quiet: failures only show as the app's error status.
+     * Checks the apps not checked in the last [STALE_AFTER_MS], so an update announced elsewhere
+     * (e.g. by the app itself) shows up without a manual refresh. Quiet: failures only show as
+     * the app's status, and GitHub's last few calls are left for the user (see GitHubRateLimit).
      */
-    fun refreshStale() {
+    private suspend fun refreshStale() {
         if (_refreshState.value.isRefreshing) return
+        val cutoff = System.currentTimeMillis() - STALE_AFTER_MS
+        val stale = repository.getAllApps().first()
+            .filter { it.checkEnabled && it.lastCheckedAt < cutoff }
+        if (stale.isEmpty() || _refreshState.value.isRefreshing) return
 
-        viewModelScope.launch {
-            val cutoff = System.currentTimeMillis() - STALE_AFTER_MS
-            val stale = repository.getAllApps().first()
-                .filter { it.checkEnabled && it.lastCheckedAt < cutoff }
-            if (stale.isEmpty() || _refreshState.value.isRefreshing) return@launch
+        _refreshState.value = RefreshState(isRefreshing = true)
+        checkApps(stale, automatic = true)
+        _refreshState.value = RefreshState(isRefreshing = false)
+    }
 
-            _refreshState.value = RefreshState(isRefreshing = true)
-            checkApps(stale)
-            _refreshState.value = RefreshState(isRefreshing = false)
+    private data class CheckSummary(val failed: Int, val rateLimited: Int, val rateLimitedUntil: Long?) {
+        fun message(): String? {
+            val parts = buildList {
+                if (failed > 0) add("$failed app(s) failed to check")
+                if (rateLimited > 0) add(
+                    "GitHub rate limit reached, $rateLimited app(s) not checked" +
+                        (rateLimitedUntil?.let { ". Try again after ${formatTime(it)}" } ?: "")
+                )
+            }
+            return parts.joinToString(". ").ifBlank { null }
         }
     }
 
-    /** Checks [apps] one by one, saving each result; returns how many failed. */
-    private suspend fun checkApps(apps: List<TrackedApp>): Int {
-        var errorCount = 0
+    private suspend fun checkApps(apps: List<TrackedApp>, automatic: Boolean): CheckSummary {
+        var failed = 0
+        var rateLimited = 0
+        var until: Long? = null
         for (app in apps) {
-            try {
-                val adapter = adapterFactory.create(app.sourceType)
-                val result = adapter.checkForUpdate(app)
-                val now = System.currentTimeMillis()
-                val isNewer = app.currentVersion.isBlank() ||
-                    VersionComparator.isNewer(app.currentVersion, result.version)
-                val status = if (isNewer) TrackedApp.STATUS_UPDATE_AVAILABLE
-                    else TrackedApp.STATUS_UP_TO_DATE
-
-                repository.updateApp(
-                    app.copy(
-                        latestKnownVersion = result.version,
-                        lastCheckedAt = now,
-                        lastStatus = status,
-                        updatedAt = now
-                    )
-                )
-
-                if (isNewer) {
-                    val existing = updateEventRepository.getEventByVersion(app.id, result.version)
-                    if (existing == null) {
-                        updateEventRepository.insertEvent(
-                            UpdateEvent(
-                                trackedAppId = app.id,
-                                detectedVersion = result.version,
-                                releaseNotes = result.releaseNotes,
-                                apkUrl = result.apkUrl,
-                                detectedAt = now
-                            )
-                        )
-                    }
+            when (val outcome = updateChecker.check(app, automatic)) {
+                is UpdateChecker.Outcome.Failed -> failed++
+                is UpdateChecker.Outcome.RateLimited -> {
+                    rateLimited++
+                    until = outcome.until ?: until
                 }
-            } catch (e: Exception) {
-                val now = System.currentTimeMillis()
-                repository.updateApp(
-                    app.copy(
-                        lastCheckedAt = now,
-                        lastStatus = TrackedApp.STATUS_ERROR,
-                        updatedAt = now
-                    )
-                )
-                errorCount++
+                else -> {}
             }
         }
-        return errorCount
+        return CheckSummary(failed, rateLimited, until)
     }
 
     fun dismissError() {
@@ -228,7 +216,8 @@ class AppListViewModel(
         fun factory(
             repository: TrackedAppRepository,
             updateEventRepository: UpdateEventRepository,
-            adapterFactory: SourceAdapterFactory,
+            updateChecker: UpdateChecker,
+            versionSync: InstalledVersionSync,
             apkDownloader: ApkDownloader,
             apkInstaller: ApkInstaller,
             selfPackageName: String,
@@ -238,7 +227,7 @@ class AppListViewModel(
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     return AppListViewModel(
-                        repository, updateEventRepository, adapterFactory,
+                        repository, updateEventRepository, updateChecker, versionSync,
                         apkDownloader, apkInstaller, selfPackageName, selfVersion
                     ) as T
                 }
