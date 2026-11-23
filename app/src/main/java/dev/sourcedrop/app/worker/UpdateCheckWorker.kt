@@ -47,6 +47,8 @@ class UpdateCheckWorker(
                 // Not an error: the next scheduled run tries again, after GitHub's reset.
                 is UpdateChecker.Outcome.RateLimited ->
                     Log.d(TAG, "${trackedApp.displayName}: skipped, GitHub rate limit")
+                is UpdateChecker.Outcome.Unchanged ->
+                    Log.d(TAG, "${trackedApp.displayName}: no new release (feed)")
                 is UpdateChecker.Outcome.Failed -> {
                     Log.e(TAG, "Error checking ${trackedApp.displayName}: ${outcome.error.message}")
                     hasErrors = true

@@ -13,7 +13,7 @@ import dev.sourcedrop.app.data.local.entity.UpdateEvent
 
 @Database(
     entities = [TrackedApp::class, UpdateEvent::class],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 abstract class SourceDropDatabase : RoomDatabase() {
@@ -57,6 +57,13 @@ abstract class SourceDropDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `tracked_apps` ADD COLUMN `feedTopTag` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `tracked_apps` ADD COLUMN `lastFullCheckAt` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun getInstance(context: Context): SourceDropDatabase {
             return instance ?: synchronized(this) {
                 instance ?: Room.databaseBuilder(
@@ -64,7 +71,7 @@ abstract class SourceDropDatabase : RoomDatabase() {
                     SourceDropDatabase::class.java,
                     "sourcedrop.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build().also { instance = it }
             }
         }

@@ -177,6 +177,9 @@ class AppDetailViewModel(
                         (outcome.until?.let { ". Try again after ${formatTime(it)}" } ?: "")
                     _uiState.update { it.copy(isChecking = false, checkError = message) }
                 }
+                // Only automatic checks skip the API; listed for completeness.
+                is UpdateChecker.Outcome.Unchanged ->
+                    _uiState.update { it.copy(isChecking = false, checkSuccess = "No new release") }
                 is UpdateChecker.Outcome.Failed -> {
                     val error = outcome.error
                     val message = if (error is AdapterError) error.message
