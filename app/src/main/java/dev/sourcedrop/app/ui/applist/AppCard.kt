@@ -188,7 +188,7 @@ fun AppCard(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = app.currentVersion.ifBlank { "\u2014" } + " \u2192 " + app.latestKnownVersion.ifBlank { "\u2014" },
+                        text = versionLabel(app),
                         style = MaterialTheme.typography.labelSmall,
                         color = if (hasUpdate) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurfaceVariant
@@ -245,4 +245,19 @@ private fun sourceTypeLabel(type: String): String = when (type) {
     TrackedApp.SOURCE_TYPE_DIRECT_APK -> stringResource(R.string.source_type_direct_apk)
     TrackedApp.SOURCE_TYPE_HTML -> stringResource(R.string.source_type_html)
     else -> type
+}
+
+/**
+ * "installed → latest", or "installed (newer than latest)" when what's installed is ahead of
+ * the newest release SourceDrop has seen (e.g. installed by hand before the next check).
+ */
+@Composable
+private fun versionLabel(app: TrackedApp): String {
+    val current = app.currentVersion
+    val latest = app.latestKnownVersion
+    return if (current.isNotBlank() && latest.isNotBlank() && VersionComparator.isNewer(latest, current)) {
+        stringResource(R.string.version_newer_than_latest, current, latest)
+    } else {
+        current.ifBlank { "\u2014" } + " \u2192 " + latest.ifBlank { "\u2014" }
+    }
 }

@@ -119,6 +119,7 @@
     <string name="last_checked">Last checked: %1$s</string>
     <string name="checking">Checking\u2026</string>
     <string name="check_now">Check Now</string>
+    <string name="version_newer_than_latest">%1$s (newer than %2$s)</string>
     <string name="checking_for_version">Checking for %1$s\u2026</string>
     <string name="open_request_not_tracked">%1$s isn\u2019t added to SourceDrop yet</string>
     <string name="update_history">Update History</string>
